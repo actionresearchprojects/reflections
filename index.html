@@ -228,18 +228,16 @@
       });
     }
 
-    async function init() {
+    window.onload = async () => {
       const metadata = await loadMetadata();
-      const isMobile = window.innerWidth < 764;
+      const isMobile = () => window.innerWidth < 764;
 
-      if (isMobile) {
+      if (isMobile()) {
         await renderMobile(metadata);
       } else {
         await renderDesktop(metadata);
       }
-    }
-
-    init();
+    };
 
     document.getElementById('arrowLeft').onclick = () => {
       document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
