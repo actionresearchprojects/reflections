@@ -228,16 +228,16 @@
       });
     }
 
-    window.onload = async () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       const metadata = await loadMetadata();
-      const isMobile = () => window.innerWidth < 764;
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
 
-      if (isMobile()) {
+      if (isMobile) {
         await renderMobile(metadata);
       } else {
         await renderDesktop(metadata);
       }
-    };
+    });
 
     document.getElementById('arrowLeft').onclick = () => {
       document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
