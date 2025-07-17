@@ -7,6 +7,7 @@
   <style>
     :root {
       --row-gap: clamp(4px, 0.75vw, 12px);
+      --arrow-size: clamp(3rem, 8vw, 5rem);
     }
 
     * {
@@ -40,6 +41,8 @@
       justify-content: flex-start;
       height: 100%;
       gap: var(--row-gap);
+      overflow-x: auto;
+      scroll-behavior: smooth;
     }
 
     .image-row {
@@ -48,8 +51,6 @@
       justify-content: flex-start;
       gap: var(--row-gap);
       flex: 1 1 0;
-      overflow-x: auto;
-      overflow-y: hidden;
     }
 
     .image-box {
@@ -97,19 +98,29 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 2rem;
+      background: none;
+      border: none;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.5);
-      padding: 4px;
+      padding: 0;
       z-index: 10;
+      transition: transform 0.1s ease;
     }
 
-    .arrow-left {
-      left: 10px;
+    .arrow:active {
+      transform: translateY(-50%) scale(0.9);
     }
 
-    .arrow-right {
-      right: 10px;
+    .arrow.left {
+      left: 0.75rem;
+    }
+
+    .arrow.right {
+      right: 0.75rem;
+    }
+
+    .arrow img {
+      width: var(--arrow-size);
+      height: auto;
     }
 
     @media (max-width: 763px) {
@@ -147,9 +158,13 @@
 </head>
 <body>
   <div class="container">
+    <button class="arrow left" id="arrowLeft" aria-label="Previous image">
+      <img src="arrows/backward-arrow.png" alt="Previous" />
+    </button>
     <div id="imageContainer"></div>
-    <div class="arrow arrow-left" id="arrowLeft">&#8249;</div>
-    <div class="arrow arrow-right" id="arrowRight">&#8250;</div>
+    <button class="arrow right" id="arrowRight" aria-label="Next image">
+      <img src="arrows/forward-arrow.png" alt="Next" />
+    </button>
   </div>
 
   <script>
@@ -255,11 +270,13 @@
     window.addEventListener('resize', renderBasedOnViewport);
 
     document.getElementById('arrowLeft').onclick = () => {
-      document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
+      const container = document.querySelector('.desktop-wrapper');
+      if (container) container.scrollBy({ left: -500, behavior: 'smooth' });
     };
 
     document.getElementById('arrowRight').onclick = () => {
-      document.getElementById('imageContainer').scrollBy({ left: 300, behavior: 'smooth' });
+      const container = document.querySelector('.desktop-wrapper');
+      if (container) container.scrollBy({ left: 500, behavior: 'smooth' });
     };
   </script>
 </body>
