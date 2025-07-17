@@ -18,8 +18,8 @@
     body {
       font-family: 'Ubuntu', sans-serif;
       background: #fff;
-      overflow: hidden;
       height: 100vh;
+      overflow: hidden;
     }
 
     .container {
@@ -34,6 +34,14 @@
       box-sizing: border-box;
     }
 
+    .desktop-wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      height: 100%;
+      gap: var(--row-gap);
+    }
+
     .image-row {
       display: flex;
       flex-direction: row;
@@ -41,14 +49,6 @@
       gap: var(--row-gap);
       flex: 1 1 0;
       overflow: hidden;
-    }
-
-    .desktop-wrapper {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      height: 100%;
-      gap: var(--row-gap);
     }
 
     .image-box {
@@ -105,8 +105,8 @@
 
     @media (max-width: 763px) {
       #imageContainer {
-        display: flex;
-        flex-direction: row;
+        display: flex !important;
+        flex-direction: row !important;
         flex-wrap: nowrap;
         overflow-x: auto;
         overflow-y: hidden;
@@ -228,16 +228,18 @@
       });
     }
 
-    window.addEventListener('DOMContentLoaded', async () => {
+    async function renderBasedOnViewport() {
       const metadata = await loadMetadata();
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
-
       if (isMobile) {
         await renderMobile(metadata);
       } else {
         await renderDesktop(metadata);
       }
-    });
+    }
+
+    window.addEventListener('DOMContentLoaded', renderBasedOnViewport);
+    window.addEventListener('resize', renderBasedOnViewport);
 
     document.getElementById('arrowLeft').onclick = () => {
       document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
