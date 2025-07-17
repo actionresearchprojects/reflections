@@ -18,14 +18,30 @@
       height: 100vh;
     }
 
+    .container {
+      position: relative;
+      height: 100vh;
+      width: 100vw;
+    }
+
     #imageContainer {
       display: flex;
-      flex-wrap: wrap;
-      align-content: start;
-      justify-content: center;
+      flex-direction: column;
+      justify-content: space-between;
       height: 100vh;
+      width: 100%;
       gap: 10px;
       padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .image-row {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: 10px;
+      height: 48vh;
+      overflow: hidden;
     }
 
     .image-box {
@@ -36,6 +52,7 @@
       align-items: center;
       justify-content: center;
       background: #ddd;
+      height: 100%;
     }
 
     .image-box img {
@@ -79,9 +96,16 @@
 
     @media (max-width: 763px) {
       #imageContainer {
+        flex-direction: row;
         flex-wrap: nowrap;
         overflow-x: auto;
         height: 100vh;
+        padding: 10px;
+      }
+
+      .image-row {
+        flex: none;
+        height: 90vh;
       }
 
       .image-box {
@@ -91,12 +115,6 @@
 
       .arrow {
         display: none;
-      }
-    }
-
-    @media (min-width: 764px) {
-      .image-box {
-        max-height: 48vh;
       }
     }
   </style>
@@ -117,51 +135,52 @@
       const container = document.getElementById('imageContainer');
       const isMobile = window.innerWidth < 764;
 
-      let topRow = [];
-      let bottomRow = [];
-
-      titles.forEach((title, idx) => {
-        const imageBox = document.createElement('div');
-        imageBox.className = 'image-box';
-
-        const img = document.createElement('img');
-        img.src = `images/${idx + 1}.jpg`;
-        img.alt = title;
-
-        const caption = document.createElement('div');
-        caption.className = 'image-title';
-        caption.innerText = title;
-
-        imageBox.appendChild(img);
-        imageBox.appendChild(caption);
-
-        if (isMobile) {
+      if (isMobile) {
+        titles.forEach((title, idx) => {
+          const imageBox = createImageBox(idx + 1, title);
           container.appendChild(imageBox);
-        } else {
-          // Distribute based on row length
-          const topHeight = topRow.reduce((sum, el) => sum + el.clientWidth || 0, 0);
-          const botHeight = bottomRow.reduce((sum, el) => sum + el.clientWidth || 0, 0);
-          if (topHeight <= botHeight) {
-            topRow.push(imageBox);
-          } else {
-            bottomRow.push(imageBox);
-          }
-        }
-      });
+        });
+      } else {
+        const topRow = document.createElement('div');
+        topRow.className = 'image-row';
 
-      if (!isMobile) {
-        const rows = [topRow, bottomRow];
-        rows.forEach(row => {
-          const rowContainer = document.createElement('div');
-          rowContainer.style.display = 'flex';
-          rowContainer.style.width = '100%';
-          rowContainer.style.justifyContent = 'center';
-          rowContainer.style.gap = '10px';
-          rowContainer.style.height = '48vh';
-          row.forEach(el => rowContainer.appendChild(el));
-          container.appendChild(rowContainer);
+        const bottomRow = document.createElement('div');
+        bottomRow.className = 'image-row';
+
+        container.appendChild(topRow);
+        container.appendChild(bottomRow);
+
+        titles.forEach((title, idx) => {
+          const imageBox = createImageBox(idx + 1, title);
+
+          const topWidth = topRow.scrollWidth;
+          const bottomWidth = bottomRow.scrollWidth;
+
+          if (topWidth <= bottomWidth) {
+            topRow.appendChild(imageBox);
+          } else {
+            bottomRow.appendChild(imageBox);
+          }
         });
       }
+    }
+
+    function createImageBox(index, title) {
+      const imageBox = document.createElement('div');
+      imageBox.className = 'image-box';
+
+      const img = document.createElement('img');
+      img.src = `images/${index}.jpg`;
+      img.alt = title;
+
+      const caption = document.createElement('div');
+      caption.className = 'image-title';
+      caption.innerText = title;
+
+      imageBox.appendChild(img);
+      imageBox.appendChild(caption);
+
+      return imageBox;
     }
 
     loadTitlesAndImages();
