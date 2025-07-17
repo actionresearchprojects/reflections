@@ -36,31 +36,31 @@
     }
 
     .desktop-wrapper {
+      height: 100%;
+      flex: 1 1 auto;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      height: 100%;
       gap: var(--row-gap);
-      flex: 0 0 auto;
+    }
+
+    .scroller {
+      display: flex;
+      flex-direction: column;
+      gap: var(--row-gap);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      height: 100%;
+      flex: 1;
     }
 
     .image-row {
       display: flex;
       flex-direction: row;
-      justify-content: flex-start;
+      flex: 0 0 auto;
       gap: var(--row-gap);
-      overflow-x: auto;
-      overflow-y: hidden;
-      flex: 1;
-      min-height: 0;
-    }
-
-    .image-row:first-child {
-      flex-basis: 50%;
-    }
-
-    .image-row:last-child {
-      flex-basis: 50%;
+      height: 50%;
     }
 
     .image-box {
@@ -225,14 +225,18 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'desktop-wrapper';
 
+      const scroller = document.createElement('div');
+      scroller.className = 'scroller';
+
       const topRow = document.createElement('div');
       topRow.className = 'image-row';
 
       const bottomRow = document.createElement('div');
       bottomRow.className = 'image-row';
 
-      wrapper.appendChild(topRow);
-      wrapper.appendChild(bottomRow);
+      scroller.appendChild(topRow);
+      scroller.appendChild(bottomRow);
+      wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
       const imageMeta = await Promise.all(metadata.map((item, i) =>
@@ -256,6 +260,18 @@
           bottomTotal += data.aspect;
         }
       }
+
+      setupArrowVisibility(scroller);
+      scroller.addEventListener('scroll', () => setupArrowVisibility(scroller));
+    }
+
+    function setupArrowVisibility(scroller) {
+      const left = document.getElementById('arrowLeft');
+      const right = document.getElementById('arrowRight');
+      const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
+
+      left.style.display = scroller.scrollLeft > 10 ? 'block' : 'none';
+      right.style.display = scroller.scrollLeft < maxScrollLeft - 10 ? 'block' : 'none';
     }
 
     function loadImage(src) {
@@ -280,13 +296,13 @@
     window.addEventListener('resize', renderBasedOnViewport);
 
     document.getElementById('arrowLeft').onclick = () => {
-      const container = document.querySelector('.desktop-wrapper');
-      if (container) container.scrollBy({ left: -500, behavior: 'smooth' });
+      const scroller = document.querySelector('.scroller');
+      if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
     };
 
     document.getElementById('arrowRight').onclick = () => {
-      const container = document.querySelector('.desktop-wrapper');
-      if (container) container.scrollBy({ left: 500, behavior: 'smooth' });
+      const scroller = document.querySelector('.scroller');
+      if (scroller) scroller.scrollBy({ left: 500, behavior: 'smooth' });
     };
   </script>
 </body>
