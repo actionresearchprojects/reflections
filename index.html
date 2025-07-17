@@ -6,7 +6,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
   <style>
     :root {
-      --row-gap: clamp(6px, 1.5vw, 20px);
+      --row-gap: clamp(4px, 0.75vw, 12px);
     }
     * {
       box-sizing: border-box;
@@ -102,8 +102,18 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         height: 100vh;
-        padding: 10px;
+        padding: 0;
       }
+
+      .image-box {
+        height: 100vh;
+        margin-right: var(--row-gap);
+      }
+
+      .arrow {
+        display: none;
+      }
+    }
 
       .image-row {
         flex: none;
