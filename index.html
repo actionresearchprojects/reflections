@@ -150,31 +150,40 @@
         container.appendChild(topRow);
         container.appendChild(bottomRow);
 
-        const tempImages = await Promise.all(
+        // Preload all image sizes first
+        const metadata = await Promise.all(
           titles.map((title, idx) =>
-            loadImage(`images/${idx + 1}.jpg`).then(img => ({ title, idx, width: img.width, height: img.height }))
+            loadImage(`images/${idx + 1}.jpg`).then(img => {
+              return {
+                idx,
+                title,
+                aspectRatio: img.width / img.height
+              };
+            })
           )
         );
 
-        const topTrack = [];
-        const botTrack = [];
+        // Simulate placement to minimise DOM operations
+        const top = [], bottom = [];
+        let topTotal = 0, bottomTotal = 0;
 
-        tempImages.forEach(({ title, idx, width, height }) => {
-          const aspect = width / height;
-          const virtualWidth = 48 * aspect; // relative horizontal footprint assuming height 48vh
-
-          const topSum = topTrack.reduce((a, b) => a + b, 0);
-          const botSum = botTrack.reduce((a, b) => a + b, 0);
-
-          const imageBox = createImageBox(idx + 1, title);
-
-          if (topSum <= botSum) {
-            topTrack.push(virtualWidth);
-            topRow.appendChild(imageBox);
+        const layoutPlan = metadata.map(data => {
+          const widthGuess = 48 * data.aspectRatio;
+          if (topTotal <= bottomTotal) {
+            topTotal += widthGuess;
+            top.push(data);
+            return { ...data, row: 'top' };
           } else {
-            botTrack.push(virtualWidth);
-            bottomRow.appendChild(imageBox);
+            bottomTotal += widthGuess;
+            bottom.push(data);
+            return { ...data, row: 'bottom' };
           }
+        });
+
+        layoutPlan.forEach(data => {
+          const imageBox = createImageBox(data.idx + 1, data.title);
+          if (data.row === 'top') topRow.appendChild(imageBox);
+          else bottomRow.appendChild(imageBox);
         });
       }
     }
