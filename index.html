@@ -5,35 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
   <style>
-    body {
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: 'Ubuntu', sans-serif;
-      background: #fff;
+      padding: 0;
     }
 
-    .container {
+    body {
+      font-family: 'Ubuntu', sans-serif;
+      background: #fff;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #imageContainer {
       display: flex;
       flex-wrap: wrap;
+      align-content: start;
       justify-content: center;
+      height: 100vh;
       gap: 10px;
       padding: 10px;
-      height: 100vh;
-      box-sizing: border-box;
     }
 
     .image-box {
       position: relative;
       overflow: hidden;
-      flex-grow: 1;
-      flex-basis: calc(25% - 10px);
-      max-width: calc(25% - 10px);
-      height: 100%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ddd;
     }
 
     .image-box img {
-      width: 100%;
       height: 100%;
-      object-fit: cover;
+      width: auto;
+      object-fit: contain;
       transition: opacity 0.3s ease;
     }
 
@@ -45,7 +53,6 @@
       position: absolute;
       bottom: 10px;
       left: 10px;
-      color: black;
       background: rgba(255, 255, 255, 0.6);
       padding: 4px 8px;
       font-size: 1rem;
@@ -59,6 +66,7 @@
       cursor: pointer;
       background: rgba(255, 255, 255, 0.5);
       padding: 4px;
+      z-index: 10;
     }
 
     .arrow-left {
@@ -70,69 +78,100 @@
     }
 
     @media (max-width: 763px) {
-      .container {
+      #imageContainer {
         flex-wrap: nowrap;
         overflow-x: auto;
-        height: auto;
+        height: 100vh;
       }
 
       .image-box {
-        flex: 0 0 auto;
-        width: 70vw;
-        height: 40vh;
-        max-width: none;
+        height: 90vh;
+        margin-right: 10px;
       }
 
       .arrow {
         display: none;
       }
     }
+
+    @media (min-width: 764px) {
+      .image-box {
+        max-height: 48vh;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container" id="imageContainer">
-    <!-- JS will inject image boxes here -->
+  <div class="container">
+    <div id="imageContainer"></div>
+    <div class="arrow arrow-left" id="arrowLeft">&#8249;</div>
+    <div class="arrow arrow-right" id="arrowRight">&#8250;</div>
   </div>
-  <div class="arrow arrow-left" id="arrowLeft">&#8249;</div>
-  <div class="arrow arrow-right" id="arrowRight">&#8250;</div>
 
   <script>
-    // Simulated titles.txt content
-    const titles = [
-      "On teaching...",
-      "On food...",
-      "Cool farmhouse in Sindh, Pakistan...",
-      "Al Mizan & buildings...",
-      "Timber, trees, buildings in Gilgit...",
-      "Example extra image..."
-    ];
+    async function loadTitlesAndImages() {
+      const res = await fetch('titles.txt');
+      const text = await res.text();
+      const titles = text.trim().split('\n');
 
-    const imageCount = titles.length;
-    const container = document.getElementById('imageContainer');
+      const container = document.getElementById('imageContainer');
+      const isMobile = window.innerWidth < 764;
 
-    for (let i = 1; i <= imageCount; i++) {
-      const imageBox = document.createElement('div');
-      imageBox.classList.add('image-box');
+      let topRow = [];
+      let bottomRow = [];
 
-      const img = document.createElement('img');
-      img.src = `./images/${i}.jpg`;
-      img.alt = `Image ${i}`;
+      titles.forEach((title, idx) => {
+        const imageBox = document.createElement('div');
+        imageBox.className = 'image-box';
 
-      const title = document.createElement('div');
-      title.classList.add('image-title');
-      title.innerText = titles[i - 1] || '';
+        const img = document.createElement('img');
+        img.src = `images/${idx + 1}.jpg`;
+        img.alt = title;
 
-      imageBox.appendChild(img);
-      imageBox.appendChild(title);
-      container.appendChild(imageBox);
+        const caption = document.createElement('div');
+        caption.className = 'image-title';
+        caption.innerText = title;
+
+        imageBox.appendChild(img);
+        imageBox.appendChild(caption);
+
+        if (isMobile) {
+          container.appendChild(imageBox);
+        } else {
+          // Distribute based on row length
+          const topHeight = topRow.reduce((sum, el) => sum + el.clientWidth || 0, 0);
+          const botHeight = bottomRow.reduce((sum, el) => sum + el.clientWidth || 0, 0);
+          if (topHeight <= botHeight) {
+            topRow.push(imageBox);
+          } else {
+            bottomRow.push(imageBox);
+          }
+        }
+      });
+
+      if (!isMobile) {
+        const rows = [topRow, bottomRow];
+        rows.forEach(row => {
+          const rowContainer = document.createElement('div');
+          rowContainer.style.display = 'flex';
+          rowContainer.style.width = '100%';
+          rowContainer.style.justifyContent = 'center';
+          rowContainer.style.gap = '10px';
+          rowContainer.style.height = '48vh';
+          row.forEach(el => rowContainer.appendChild(el));
+          container.appendChild(rowContainer);
+        });
+      }
     }
 
-    // Placeholder nav functionality for future override
+    loadTitlesAndImages();
+
     document.getElementById('arrowLeft').onclick = () => {
-      container.scrollBy({ left: -300, behavior: 'smooth' });
+      document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
     };
+
     document.getElementById('arrowRight').onclick = () => {
-      container.scrollBy({ left: 300, behavior: 'smooth' });
+      document.getElementById('imageContainer').scrollBy({ left: 300, behavior: 'smooth' });
     };
   </script>
 </body>
