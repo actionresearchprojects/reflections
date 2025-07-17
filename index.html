@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Ubuntu', sans-serif;
+      background: #fff;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .image-box {
+      position: relative;
+      overflow: hidden;
+      flex-grow: 1;
+      flex-basis: calc(25% - 10px);
+      max-width: calc(25% - 10px);
+      height: 100%;
+    }
+
+    .image-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 0.3s ease;
+    }
+
+    .image-box:hover img {
+      opacity: 0.8;
+    }
+
+    .image-title {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: black;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 4px 8px;
+      font-size: 1rem;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2rem;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 4px;
+    }
+
+    .arrow-left {
+      left: 10px;
+    }
+
+    .arrow-right {
+      right: 10px;
+    }
+
+    @media (max-width: 763px) {
+      .container {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        height: auto;
+      }
+
+      .image-box {
+        flex: 0 0 auto;
+        width: 70vw;
+        height: 40vh;
+        max-width: none;
+      }
+
+      .arrow {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="imageContainer">
+    <!-- JS will inject image boxes here -->
+  </div>
+  <div class="arrow arrow-left" id="arrowLeft">&#8249;</div>
+  <div class="arrow arrow-right" id="arrowRight">&#8250;</div>
+
+  <script>
+    // Simulated titles.txt content
+    const titles = [
+      "On teaching...",
+      "On food...",
+      "Cool farmhouse in Sindh, Pakistan...",
+      "Al Mizan & buildings...",
+      "Timber, trees, buildings in Gilgit...",
+      "Example extra image..."
+    ];
+
+    const imageCount = titles.length;
+    const container = document.getElementById('imageContainer');
+
+    for (let i = 1; i <= imageCount; i++) {
+      const imageBox = document.createElement('div');
+      imageBox.classList.add('image-box');
+
+      const img = document.createElement('img');
+      img.src = `./images/${i}.jpg`;
+      img.alt = `Image ${i}`;
+
+      const title = document.createElement('div');
+      title.classList.add('image-title');
+      title.innerText = titles[i - 1] || '';
+
+      imageBox.appendChild(img);
+      imageBox.appendChild(title);
+      container.appendChild(imageBox);
+    }
+
+    // Placeholder nav functionality for future override
+    document.getElementById('arrowLeft').onclick = () => {
+      container.scrollBy({ left: -300, behavior: 'smooth' });
+    };
+    document.getElementById('arrowRight').onclick = () => {
+      container.scrollBy({ left: 300, behavior: 'smooth' });
+    };
+  </script>
+</body>
+</html>
