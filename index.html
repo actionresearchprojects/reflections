@@ -38,7 +38,7 @@
     .image-row {
       display: flex;
       flex-direction: row;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 10px;
       height: 48vh;
       overflow: hidden;
@@ -150,15 +150,29 @@
         container.appendChild(topRow);
         container.appendChild(bottomRow);
 
-        titles.forEach((title, idx) => {
+        const tempImages = await Promise.all(
+          titles.map((title, idx) =>
+            loadImage(`images/${idx + 1}.jpg`).then(img => ({ title, idx, width: img.width, height: img.height }))
+          )
+        );
+
+        const topTrack = [];
+        const botTrack = [];
+
+        tempImages.forEach(({ title, idx, width, height }) => {
+          const aspect = width / height;
+          const virtualWidth = 48 * aspect; // relative horizontal footprint assuming height 48vh
+
+          const topSum = topTrack.reduce((a, b) => a + b, 0);
+          const botSum = botTrack.reduce((a, b) => a + b, 0);
+
           const imageBox = createImageBox(idx + 1, title);
 
-          const topWidth = topRow.scrollWidth;
-          const bottomWidth = bottomRow.scrollWidth;
-
-          if (topWidth <= bottomWidth) {
+          if (topSum <= botSum) {
+            topTrack.push(virtualWidth);
             topRow.appendChild(imageBox);
           } else {
+            botTrack.push(virtualWidth);
             bottomRow.appendChild(imageBox);
           }
         });
@@ -181,6 +195,14 @@
       imageBox.appendChild(caption);
 
       return imageBox;
+    }
+
+    function loadImage(src) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = src;
+      });
     }
 
     loadTitlesAndImages();
