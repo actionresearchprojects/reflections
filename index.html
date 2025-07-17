@@ -55,6 +55,7 @@
       justify-content: center;
       background: #ddd;
       height: 100%;
+      cursor: pointer;
     }
 
     .image-box img {
@@ -127,16 +128,22 @@
 
   <script>
     async function loadTitlesAndImages() {
-      const res = await fetch('titles.txt');
+      const res = await fetch('metadata.txt');
       const text = await res.text();
-      const titles = text.trim().split('\n');
+      const lines = text.trim().split('\n').map(line => {
+        const [title, link] = line.split('|~|');
+        return {
+          title: title.trim(),
+          link: link.trim()
+        };
+      });
 
       const container = document.getElementById('imageContainer');
       const isMobile = window.innerWidth < 764;
 
       if (isMobile) {
-        titles.forEach((title, idx) => {
-          const imageBox = createImageBox(idx + 1, title);
+        lines.forEach((item, idx) => {
+          const imageBox = createImageBox(idx + 1, item.title, item.link);
           container.appendChild(imageBox);
         });
       } else {
@@ -149,20 +156,17 @@
         container.appendChild(topRow);
         container.appendChild(bottomRow);
 
-        // Preload all image sizes first
         const metadata = await Promise.all(
-          titles.map((title, idx) =>
-            loadImage(`images/${idx + 1}.jpg`).then(img => {
-              return {
-                idx,
-                title,
-                aspectRatio: img.width / img.height
-              };
-            })
+          lines.map((item, idx) =>
+            loadImage(`images/${idx + 1}.jpg`).then(img => ({
+              idx,
+              title: item.title,
+              link: item.link,
+              aspectRatio: img.width / img.height
+            }))
           )
         );
 
-        // Simulate placement to minimise DOM operations
         const top = [], bottom = [];
         let topTotal = 0, bottomTotal = 0;
 
@@ -180,16 +184,19 @@
         });
 
         layoutPlan.forEach(data => {
-          const imageBox = createImageBox(data.idx + 1, data.title);
+          const imageBox = createImageBox(data.idx + 1, data.title, data.link);
           if (data.row === 'top') topRow.appendChild(imageBox);
           else bottomRow.appendChild(imageBox);
         });
       }
     }
 
-    function createImageBox(index, title) {
+    function createImageBox(index, title, link) {
       const imageBox = document.createElement('div');
       imageBox.className = 'image-box';
+      imageBox.onclick = () => {
+        window.top.location.href = link;
+      };
 
       const img = document.createElement('img');
       img.src = `images/${index}.jpg`;
