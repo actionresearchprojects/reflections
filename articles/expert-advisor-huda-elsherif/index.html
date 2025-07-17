@@ -6,28 +6,22 @@
   <title>Expert Advisor: Huda Elsherif</title>
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
   <style>
-    html {
-      border: 2px solid black;
+    html, body {
+      margin: 0;
+      padding: 0;
       height: 100%;
-      overflow-y: scroll; /* Force scrollbar */
-    }
-
-    * {
-      box-sizing: border-box;
-      scroll-behavior: smooth;
     }
 
     body {
       font-family: 'Ubuntu', sans-serif;
-      margin: 0;
       padding: 20px 20px 40px 20px;
       line-height: 1.6;
       color: #111;
       background: #fff;
       max-width: 700px;
-      margin-left: auto;
-      margin-right: auto;
+      margin: auto;
       position: relative;
+      overflow-y: scroll;
     }
 
     h1 {
@@ -53,9 +47,15 @@
       border: none;
       cursor: pointer;
       border-radius: 4px;
-      opacity: 0.7;
-      display: none;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
       z-index: 10;
+    }
+
+    #topBtn.visible {
+      opacity: 0.7;
+      pointer-events: auto;
     }
 
     #topBtn:hover {
@@ -63,17 +63,33 @@
     }
 
     #scrollPrompt {
-      text-align: center;
-      font-size: 0.9rem;
+      position: fixed;
+      top: 12px;
+      right: 14px;
+      font-size: 0.85rem;
       color: #888;
-      margin-top: 10px;
-      display: block;
+      z-index: 5;
+      user-select: none;
+    }
+
+    /* Fixed viewport border */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      border: 2px solid black;
+      pointer-events: none;
+      z-index: 100;
     }
   </style>
 </head>
 <body>
+  <div id="scrollPrompt">↓ Scroll</div>
+
   <h1>Expert Advisor: Huda Elsherif</h1>
-  <span id="scrollPrompt">↓ Scroll to read more</span>
   <img src="images/image1.jpg" alt="Huda Elsherif" />
 
   <p>As a Sudanese expat who spent every summer visiting family in the village, I was frequently exposed to various house typologies and lifestyles...</p>
@@ -83,12 +99,16 @@
   <p>As part of my research, I am developing a framework for sustainable housing...</p>
   <p>I believe that the diversity of socioeconomic and environmental conditions in the climate-vulnerable requires that we steer away from standardisation...</p>
 
-  <button id="topBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">▲</button>
+  <button id="topBtn">▲</button>
 
   <script>
     const btn = document.getElementById('topBtn');
     window.addEventListener('scroll', () => {
-      btn.style.display = window.scrollY > 100 ? 'block' : 'none';
+      if (window.scrollY > 100) {
+        btn.classList.add('visible');
+      } else {
+        btn.classList.remove('visible');
+      }
     });
   </script>
 </body>
