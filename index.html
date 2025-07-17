@@ -29,13 +29,8 @@
     }
 
     #imageContainer {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      height: 100vh;
       width: 100%;
-      box-sizing: border-box;
-      gap: var(--row-gap);
+      height: 100%;
     }
 
     .image-row {
@@ -105,22 +100,21 @@
         flex-direction: row;
         flex-wrap: nowrap;
         overflow-x: auto;
+        overflow-y: hidden;
         height: 100vh;
-        padding: 0;
-        gap: 0;
+        gap: var(--row-gap);
         align-items: center;
       }
 
       .image-box {
         height: 90vh;
         flex: 0 0 auto;
-        margin-right: var(--row-gap);
       }
 
       .image-box img {
         height: 100%;
-        width: 100%;
-        object-fit: cover;
+        width: auto;
+        object-fit: contain;
       }
 
       .arrow {
@@ -137,79 +131,19 @@
   </div>
 
   <script>
-    async function loadTitlesAndImages() {
+    async function loadMetadata() {
       const res = await fetch('metadata.txt');
       const text = await res.text();
-      const lines = text.trim().split('\n').map(line => {
+      return text.trim().split('\n').map(line => {
         const [title, link] = line.split('|~|');
-        return {
-          title: title.trim(),
-          link: link.trim()
-        };
+        return { title: title.trim(), link: link.trim() };
       });
-
-      const container = document.getElementById('imageContainer');
-      const isMobile = window.innerWidth < 764;
-
-      if (isMobile) {
-        for (let i = 0; i < lines.length; i++) {
-          const img = await loadImage(`images/${i + 1}.jpg`);
-          const aspect = img.width / img.height;
-          const imageBox = createImageBox(i + 1, lines[i].title, lines[i].link);
-          imageBox.style.aspectRatio = `${aspect}`;
-          container.appendChild(imageBox);
-        }
-      } else {
-        const topRow = document.createElement('div');
-        topRow.className = 'image-row';
-
-        const bottomRow = document.createElement('div');
-        bottomRow.className = 'image-row';
-
-        container.appendChild(topRow);
-        container.appendChild(bottomRow);
-
-        const metadata = await Promise.all(
-          lines.map((item, idx) =>
-            loadImage(`images/${idx + 1}.jpg`).then(img => ({
-              idx,
-              title: item.title,
-              link: item.link,
-              aspectRatio: img.width / img.height
-            }))
-          )
-        );
-
-        const top = [], bottom = [];
-        let topTotal = 0, bottomTotal = 0;
-
-        const layoutPlan = metadata.map(data => {
-          const widthGuess = 48 * data.aspectRatio;
-          if (topTotal <= bottomTotal) {
-            topTotal += widthGuess;
-            top.push(data);
-            return { ...data, row: 'top' };
-          } else {
-            bottomTotal += widthGuess;
-            bottom.push(data);
-            return { ...data, row: 'bottom' };
-          }
-        });
-
-        layoutPlan.forEach(data => {
-          const imageBox = createImageBox(data.idx + 1, data.title, data.link);
-          if (data.row === 'top') topRow.appendChild(imageBox);
-          else bottomRow.appendChild(imageBox);
-        });
-      }
     }
 
     function createImageBox(index, title, link) {
-      const imageBox = document.createElement('div');
-      imageBox.className = 'image-box';
-      imageBox.onclick = () => {
-        window.top.location.href = link;
-      };
+      const box = document.createElement('div');
+      box.className = 'image-box';
+      box.onclick = () => window.top.location.href = link;
 
       const img = document.createElement('img');
       img.src = `images/${index}.jpg`;
@@ -219,10 +153,58 @@
       caption.className = 'image-title';
       caption.innerText = title;
 
-      imageBox.appendChild(img);
-      imageBox.appendChild(caption);
+      box.appendChild(img);
+      box.appendChild(caption);
+      return box;
+    }
 
-      return imageBox;
+    async function renderMobileLayout(metadata) {
+      const container = document.getElementById('imageContainer');
+      container.innerHTML = '';
+      container.style.display = 'flex';
+
+      for (let i = 0; i < metadata.length; i++) {
+        const img = await loadImage(`images/${i + 1}.jpg`);
+        const box = createImageBox(i + 1, metadata[i].title, metadata[i].link);
+        box.style.aspectRatio = `${img.width} / ${img.height}`;
+        container.appendChild(box);
+      }
+    }
+
+    async function renderDesktopLayout(metadata) {
+      const container = document.getElementById('imageContainer');
+      container.innerHTML = '';
+
+      const topRow = document.createElement('div');
+      topRow.className = 'image-row';
+
+      const bottomRow = document.createElement('div');
+      bottomRow.className = 'image-row';
+
+      container.appendChild(topRow);
+      container.appendChild(bottomRow);
+
+      const dataWithAspect = await Promise.all(metadata.map((item, idx) =>
+        loadImage(`images/${idx + 1}.jpg`).then(img => ({
+          idx,
+          title: item.title,
+          link: item.link,
+          aspectRatio: img.width / img.height
+        }))
+      ));
+
+      let topTotal = 0, bottomTotal = 0;
+
+      for (const data of dataWithAspect) {
+        const box = createImageBox(data.idx + 1, data.title, data.link);
+        if (topTotal <= bottomTotal) {
+          topRow.appendChild(box);
+          topTotal += data.aspectRatio;
+        } else {
+          bottomRow.appendChild(box);
+          bottomTotal += data.aspectRatio;
+        }
+      }
     }
 
     function loadImage(src) {
@@ -233,7 +215,17 @@
       });
     }
 
-    loadTitlesAndImages();
+    async function initialise() {
+      const metadata = await loadMetadata();
+      const isMobile = window.innerWidth < 764;
+      if (isMobile) {
+        await renderMobileLayout(metadata);
+      } else {
+        await renderDesktopLayout(metadata);
+      }
+    }
+
+    initialise();
 
     document.getElementById('arrowLeft').onclick = () => {
       document.getElementById('imageContainer').scrollBy({ left: -300, behavior: 'smooth' });
