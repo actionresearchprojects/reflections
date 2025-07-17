@@ -143,6 +143,7 @@
         height: 100vh;
         gap: var(--row-gap);
         align-items: center;
+        scroll-behavior: smooth;
       }
 
       .image-box {
@@ -281,23 +282,26 @@
     async function renderBasedOnViewport() {
       const metadata = await loadMetadata();
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
-      if (isMobile) {
-        await renderMobile(metadata);
-      } else {
-        await renderDesktop(metadata);
-      }
+      await (isMobile ? renderMobile : renderDesktop)(metadata);
     }
 
     window.addEventListener('DOMContentLoaded', renderBasedOnViewport);
     window.addEventListener('resize', renderBasedOnViewport);
 
+    function getScrollableElement() {
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
+      return isMobile
+        ? document.getElementById('imageContainer')
+        : document.querySelector('.scroller');
+    }
+
     document.getElementById('arrowLeft').onclick = () => {
-      const scroller = document.querySelector('.scroller');
+      const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
     };
 
     document.getElementById('arrowRight').onclick = () => {
-      const scroller = document.querySelector('.scroller');
+      const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: 500, behavior: 'smooth' });
     };
   </script>
