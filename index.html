@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -104,22 +104,21 @@
         flex-direction: row;
         flex-wrap: nowrap;
         overflow-x: auto;
-        overflow-y: hidden;
         height: 100vh;
         padding: 0;
-        gap: var(--row-gap);
+        gap: 0;
         align-items: center;
       }
 
       .image-box {
-        aspect-ratio: 3 / 2;
         height: 90vh;
         flex: 0 0 auto;
+        margin-right: var(--row-gap);
       }
 
       .image-box img {
-        width: 100%;
         height: 100%;
+        width: 100%;
         object-fit: cover;
       }
 
@@ -152,10 +151,13 @@
       const isMobile = window.innerWidth < 764;
 
       if (isMobile) {
-        lines.forEach((item, idx) => {
-          const imageBox = createImageBox(idx + 1, item.title, item.link);
+        for (let i = 0; i < lines.length; i++) {
+          const img = await loadImage(`images/${i + 1}.jpg`);
+          const aspect = img.width / img.height;
+          const imageBox = createImageBox(i + 1, lines[i].title, lines[i].link);
+          imageBox.style.aspectRatio = `${aspect}`;
           container.appendChild(imageBox);
-        });
+        }
       } else {
         const topRow = document.createElement('div');
         topRow.className = 'image-row';
@@ -177,19 +179,26 @@
           )
         );
 
+        const top = [], bottom = [];
         let topTotal = 0, bottomTotal = 0;
 
-        metadata.forEach(data => {
+        const layoutPlan = metadata.map(data => {
           const widthGuess = 48 * data.aspectRatio;
-          const imageBox = createImageBox(data.idx + 1, data.title, data.link);
-
           if (topTotal <= bottomTotal) {
             topTotal += widthGuess;
-            topRow.appendChild(imageBox);
+            top.push(data);
+            return { ...data, row: 'top' };
           } else {
             bottomTotal += widthGuess;
-            bottomRow.appendChild(imageBox);
+            bottom.push(data);
+            return { ...data, row: 'bottom' };
           }
+        });
+
+        layoutPlan.forEach(data => {
+          const imageBox = createImageBox(data.idx + 1, data.title, data.link);
+          if (data.row === 'top') topRow.appendChild(imageBox);
+          else bottomRow.appendChild(imageBox);
         });
       }
     }
