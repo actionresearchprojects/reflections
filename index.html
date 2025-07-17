@@ -106,11 +106,20 @@
         height: 100vh;
         padding: 0;
         gap: 0;
+        align-items: center;
       }
 
       .image-box {
-        height: 100vh;
+        aspect-ratio: 3 / 2;
+        height: 90vh;
         margin-right: var(--row-gap);
+        flex: 0 0 auto;
+      }
+
+      .image-box img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
       }
 
       .arrow {
