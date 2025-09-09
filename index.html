@@ -2,19 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Responsive Image Carousel (Fast, TW-friendly)</title>
+
+  <!-- Font (with sensible preconnects to cut RTT) -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --row-gap: clamp(4px, 0.75vw, 12px);
       --arrow-size: clamp(3rem, 8vw, 5rem);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
 
     body {
       font-family: 'Ubuntu', sans-serif;
@@ -84,23 +91,21 @@
       transition: opacity 0.3s ease;
     }
 
-    .image-box:hover img {
-      opacity: 0.75;
-    }
+    .image-box:hover img { opacity: 0.75; }
 
     .image-title {
       position: absolute;
       bottom: 10px;
       left: 10px;
       z-index: 4;
-      color: black;
+      color: #000;
       font-size: clamp(0.66rem, 1.7vw, 1.33rem);
       font-weight: bold;
       text-shadow:
-        -1px -1px 0 white,
-         1px -1px 0 white,
-        -1px  1px 0 white,
-         1px  1px 0 white;
+        -1px -1px 0 #fff,
+         1px -1px 0 #fff,
+        -1px  1px 0 #fff,
+         1px  1px 0 #fff;
       pointer-events: none;
     }
 
@@ -114,23 +119,18 @@
       padding: 0;
       z-index: 10;
       transition: transform 0.1s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .arrow:active {
-      transform: translateY(-50%) scale(0.9);
-    }
-
-    .arrow.left {
-      left: 0.75rem;
-    }
-
-    .arrow.right {
-      right: 0.75rem;
-    }
+    .arrow:active { transform: translateY(-50%) scale(0.9); }
+    .arrow.left { left: 0.75rem; }
+    .arrow.right { right: 0.75rem; }
 
     .arrow img {
       width: var(--arrow-size);
       height: auto;
+      display: block;
     }
 
     @media (max-width: 763px) {
@@ -144,6 +144,7 @@
         gap: var(--row-gap);
         align-items: center;
         scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
       }
 
       .image-box {
@@ -165,41 +166,69 @@
 </head>
 <body>
   <div class="container">
-    <button class="arrow left" id="arrowLeft" aria-label="Previous image">
+    <button class="arrow left" id="arrowLeft" aria-label="Previous">
       <img src="arrows/backward-arrow.png" alt="Previous" />
     </button>
+
     <div id="imageContainer"></div>
-    <button class="arrow right" id="arrowRight" aria-label="Next image">
+
+    <button class="arrow right" id="arrowRight" aria-label="Next">
       <img src="arrows/forward-arrow.png" alt="Next" />
     </button>
   </div>
 
   <script>
+    // Caches to avoid repeated network work across resizes
+    let _metadataCache = null;
+    let _lastIsMobile = null;
+    let _resizeTimer = null;
+
+    // Fetch and cache metadata; let the browser use its HTTP cache aggressively
     async function loadMetadata() {
-      const res = await fetch('metadata.txt');
+      if (_metadataCache) return _metadataCache;
+      const res = await fetch('metadata.txt', { cache: 'force-cache' });
       const text = await res.text();
-      return text.trim().split('\n').map(line => {
+      _metadataCache = text.trim().split('\n').map(line => {
         const [title, link] = line.split('|~|');
-        return { title: title.trim(), link: link.trim() };
+        return { title: (title || '').trim(), link: (link || '').trim() };
       });
+      return _metadataCache;
     }
 
-    function createImageBox(index, title, link) {
+    function createImageBox(index, title, link, opts = {}) {
       const box = document.createElement('div');
       box.className = 'image-box';
-      box.onclick = () => window.top.location.href = link;
+      box.addEventListener('click', () => {
+        // Keep behaviour consistent inside iframes
+        try { window.top.location.href = link; } catch { window.location.href = link; }
+      }, { passive: true });
 
       const img = document.createElement('img');
       img.src = `images/${index}.jpg`;
-      img.alt = title;
+      img.alt = title || '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (opts.fetchPriority) img.fetchPriority = opts.fetchPriority;
 
       const caption = document.createElement('div');
       caption.className = 'image-title';
-      caption.innerText = title;
+      caption.textContent = title || '';
 
       box.appendChild(img);
       box.appendChild(caption);
       return box;
+    }
+
+    function loadImage(src) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.onload = () => resolve({
+          width: img.naturalWidth || img.width || 0,
+          height: img.naturalHeight || img.height || 0
+        });
+        img.src = src;
+      });
     }
 
     async function renderMobile(metadata) {
@@ -207,12 +236,19 @@
       container.innerHTML = '';
       container.style.display = 'flex';
 
+      // Probe dimensions in parallel so we can set aspect-ratio and avoid layout shifts
+      const probes = metadata.map((_, i) => loadImage(`images/${i + 1}.jpg`));
+      const dims = await Promise.all(probes);
+
+      const frag = document.createDocumentFragment();
       for (let i = 0; i < metadata.length; i++) {
-        const img = await loadImage(`images/${i + 1}.jpg`);
-        const box = createImageBox(i + 1, metadata[i].title, metadata[i].link);
-        box.style.aspectRatio = `${img.width} / ${img.height}`;
-        container.appendChild(box);
+        const { title, link } = metadata[i];
+        const box = createImageBox(i + 1, title, link, { fetchPriority: i < 2 ? 'high' : 'auto' });
+        const w = dims[i].width, h = dims[i].height;
+        if (w && h) box.style.aspectRatio = `${w} / ${h}`;
+        frag.appendChild(box);
       }
+      container.appendChild(frag);
     }
 
     async function renderDesktop(metadata) {
@@ -236,57 +272,45 @@
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
+      // Probe all image aspect ratios in parallel
       const imageMeta = await Promise.all(metadata.map((item, i) =>
-        loadImage(`images/${i + 1}.jpg`).then(img => ({
+        loadImage(`images/${i + 1}.jpg`).then(dim => ({
           idx: i,
           title: item.title,
           link: item.link,
-          aspect: img.width / img.height
+          aspect: dim.width && dim.height ? dim.width / dim.height : 1.5
         }))
       ));
 
       let topTotal = 0, bottomTotal = 0;
+      const topFrag = document.createDocumentFragment();
+      const bottomFrag = document.createDocumentFragment();
 
       for (const data of imageMeta) {
         const box = createImageBox(data.idx + 1, data.title, data.link);
         if (topTotal <= bottomTotal) {
-          topRow.appendChild(box);
+          topFrag.appendChild(box);
           topTotal += data.aspect;
         } else {
-          bottomRow.appendChild(box);
+          bottomFrag.appendChild(box);
           bottomTotal += data.aspect;
         }
       }
 
+      topRow.appendChild(topFrag);
+      bottomRow.appendChild(bottomFrag);
+
       setupArrowVisibility(scroller);
-      scroller.addEventListener('scroll', () => setupArrowVisibility(scroller));
+      scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
 
     function setupArrowVisibility(scroller) {
       const left = document.getElementById('arrowLeft');
       const right = document.getElementById('arrowRight');
       const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
-
       left.style.display = scroller.scrollLeft > 10 ? 'block' : 'none';
       right.style.display = scroller.scrollLeft < maxScrollLeft - 10 ? 'block' : 'none';
     }
-
-    function loadImage(src) {
-      return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = src;
-      });
-    }
-
-    async function renderBasedOnViewport() {
-      const metadata = await loadMetadata();
-      const isMobile = window.matchMedia('(max-width: 763px)').matches;
-      await (isMobile ? renderMobile : renderDesktop)(metadata);
-    }
-
-    window.addEventListener('DOMContentLoaded', renderBasedOnViewport);
-    window.addEventListener('resize', renderBasedOnViewport);
 
     function getScrollableElement() {
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
@@ -295,6 +319,24 @@
         : document.querySelector('.scroller');
     }
 
+    async function renderBasedOnViewport() {
+      const metadata = await loadMetadata();
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
+      if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
+      _lastIsMobile = isMobile;
+      await (isMobile ? renderMobile : renderDesktop)(metadata);
+    }
+
+    // Initial render
+    window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
+
+    // Debounced resize: only re-render when actually crossing the breakpoint
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(renderBasedOnViewport, 200);
+    }, { passive: true });
+
+    // Arrow controls
     document.getElementById('arrowLeft').onclick = () => {
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
