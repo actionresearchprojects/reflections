@@ -2,181 +2,72 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Responsive Image Carousel</title>
 
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
 
   <style>
-    :root {
-      --row-gap: clamp(4px, 0.75vw, 12px);
-      --arrow-size: clamp(3rem, 8vw, 5rem);
-    }
-
+    :root { --row-gap: clamp(4px, 0.75vw, 12px); --arrow-size: clamp(3rem, 8vw, 5rem); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
-
-    body {
-      font-family: 'Ubuntu', sans-serif;
-      background: #fff;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    .container {
-      position: relative;
-      height: 100vh;
-      width: 100vw;
-    }
-
-    #imageContainer {
-      height: 100%;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .desktop-wrapper {
-      height: 100%;
-      flex: 1 1 auto;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: var(--row-gap);
-    }
-
-    .scroller {
-      display: flex;
-      flex-direction: column;
-      gap: var(--row-gap);
-      overflow-x: auto;
-      overflow-y: hidden;
-      scroll-behavior: smooth;
-      height: 100%;
-      flex: 1;
-    }
-
-    .image-row {
-      display: flex;
-      flex-direction: row;
-      flex: 0 0 auto;
-      gap: var(--row-gap);
-      height: 50%;
-    }
-
-    .image-box {
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #ddd;
-      height: 100%;
-    }
-
+    body { font-family: 'Ubuntu', sans-serif; background: #fff; height: 100vh; overflow: hidden; }
+    .container { position: relative; height: 100vh; width: 100vw; }
+    #imageContainer { height: 100%; width: 100%; box-sizing: border-box; }
+    .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: var(--row-gap); }
+    .scroller { display: flex; flex-direction: column; gap: var(--row-gap); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; height: 100%; flex: 1; }
+    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap); height: 50%; }
+    .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: #ddd; height: 100%; }
     .image-box.clickable { cursor: pointer; }
-
-    .image-box img {
-      height: 100%;
-      width: auto;
-      object-fit: contain;
-      opacity: 0.90;
-      transition: opacity 0.3s ease;
-    }
-
+    .image-box img { height: 100%; width: auto; object-fit: contain; opacity: 0.9; transition: opacity 0.3s ease; }
     .image-box.clickable:hover img { opacity: 0.75; }
-
     .image-title {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      z-index: 4;
-      color: #000;
-      font-size: clamp(0.66rem, 1.7vw, 1.33rem);
-      font-weight: bold;
-      text-shadow:
-        -1px -1px 0 #fff,
-         1px -1px 0 #fff,
-        -1px  1px 0 #fff,
-         1px  1px 0 #fff;
+      position: absolute; bottom: 10px; left: 10px; z-index: 4; color: #000;
+      font-size: clamp(0.66rem, 1.7vw, 1.33rem); font-weight: bold;
+      text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
       pointer-events: none;
     }
-
-    .arrow {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      z-index: 10;
-      transition: transform 0.1s ease;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    .arrow { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; z-index: 10; transition: transform 0.1s ease; user-select: none; -webkit-tap-highlight-color: transparent; }
     .arrow:active { transform: translateY(-50%) scale(0.9); }
-    .arrow.left { left: 0.75rem; }
-    .arrow.right { right: 0.75rem; }
-
-    .arrow img {
-      width: var(--arrow-size);
-      height: auto;
-      display: block;
-    }
-
+    .arrow.left { left: 0.75rem; } .arrow.right { right: 0.75rem; }
+    .arrow img { width: var(--arrow-size); height: auto; display: block; }
     @media (max-width: 763px) {
-      #imageContainer {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        height: 100vh;
-        gap: var(--row-gap);
-        align-items: center;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-      }
-
-      .image-box {
-        height: 100vh;
-        flex: 0 0 auto;
-      }
-
-      .image-box img {
-        height: 100%;
-        width: auto;
-        object-fit: contain;
-      }
-
-      .image-title {
-        font-size: clamp(0.53rem, 2.6vw, 0.8rem);
-      }
+      #imageContainer { display: flex !important; flex-direction: row !important; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; height: 100vh; gap: var(--row-gap); align-items: center; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+      .image-box { height: 100vh; }
+      .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <button class="arrow left" id="arrowLeft" aria-label="Previous">
-      <img src="arrows/backward-arrow.png" alt="Previous" />
+      <img id="arrowLeftImg" alt="Previous" />
     </button>
-
     <div id="imageContainer"></div>
-
     <button class="arrow right" id="arrowRight" aria-label="Next">
-      <img src="arrows/forward-arrow.png" alt="Next" />
+      <img id="arrowRightImg" alt="Next" />
     </button>
   </div>
 
   <script>
+    // Bump this when you change captions/images to defeat CDN/browser caches.
+    const VERSION = 'v2025-09-09-1';
+
+    // Build asset URLs that always resolve correctly when embedded.
+    function asset(path) {
+      const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
+      const url = new URL(path, here);
+      url.searchParams.set('v', VERSION);
+      return url.href;
+    }
+
+    // Set arrow icon src with cache-busting too.
+    document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
+    document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
+
     let _metadataCache = null;
     let _lastIsMobile = null;
     let _resizeTimer = null;
@@ -184,7 +75,7 @@
 
     async function loadMetadata() {
       if (_metadataCache) return _metadataCache;
-      const res = await fetch('metadata.txt', { cache: 'force-cache' });
+      const res = await fetch(asset('metadata.txt'), { cache: 'no-store' });
       const text = await res.text();
       _metadataCache = text
         .trim()
@@ -202,12 +93,7 @@
       return new Promise(resolve => {
         const img = new Image();
         img.decoding = 'async';
-        img.onload = () => resolve({
-          ok: true,
-          src,
-          width: img.naturalWidth || img.width || 0,
-          height: img.naturalHeight || img.height || 0
-        });
+        img.onload = () => resolve({ ok: true, src, width: img.naturalWidth || img.width || 0, height: img.naturalHeight || img.height || 0 });
         img.onerror = () => resolve({ ok: false, src, width: 0, height: 0 });
         img.src = src;
       });
@@ -215,31 +101,34 @@
 
     async function resolveSrcForIndex(index) {
       const base = `images/${index}`;
-      const tryJpg = await probeImage(`${base}.jpg`);
-      if (tryJpg.ok) return tryJpg;
-      const tryPng = await probeImage(`${base}.png`);
-      if (tryPng.ok) return tryPng;
-      return { ok: false, src: `${base}.jpg`, width: 0, height: 0 };
+      const jpg = await probeImage(asset(`${base}.jpg`));
+      if (jpg.ok) return jpg;
+      const png = await probeImage(asset(`${base}.png`));
+      if (png.ok) return png;
+      return { ok: false, src: asset(`${base}.jpg`), width: 0, height: 0 };
     }
 
     async function resolveAll(count) {
       if (_resolved && _resolved.length === count) return _resolved;
-      _resolved = await Promise.all(
-        Array.from({ length: count }, (_, i) => resolveSrcForIndex(i + 1))
-      );
+      _resolved = await Promise.all(Array.from({ length: count }, (_, i) => resolveSrcForIndex(i + 1)));
       return _resolved;
+    }
+
+    function safeNavigate(link) {
+      if (!link) return;
+      // Safer in embeds: try _top, fall back to new tab, finally same frame.
+      try { window.open(link, '_top'); return; } catch {}
+      try { window.open(link, '_blank', 'noopener'); return; } catch {}
+      location.href = link;
     }
 
     function createImageBox(index, title, link, src, opts = {}) {
       const box = document.createElement('div');
       box.className = 'image-box';
       const hasLink = Boolean(link && link.trim());
-
       if (hasLink) {
         box.classList.add('clickable');
-        box.addEventListener('click', () => {
-          try { window.top.location.href = link; } catch { window.location.href = link; }
-        }, { passive: true });
+        box.addEventListener('click', () => safeNavigate(link), { passive: true });
       }
 
       const img = document.createElement('img');
@@ -262,7 +151,6 @@
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
       container.style.display = 'flex';
-
       const frag = document.createDocumentFragment();
       for (let i = 0; i < metadata.length; i++) {
         const { title, link } = metadata[i];
@@ -304,13 +192,8 @@
         const r = resolved[i];
         const aspect = r.width && r.height ? r.width / r.height : 1.5;
         const box = createImageBox(i + 1, title, link, r.src);
-        if (topTotal <= bottomTotal) {
-          topFrag.appendChild(box);
-          topTotal += aspect;
-        } else {
-          bottomFrag.appendChild(box);
-          bottomTotal += aspect;
-        }
+        if (topTotal <= bottomTotal) { topFrag.appendChild(box); topTotal += aspect; }
+        else { bottomFrag.appendChild(box); bottomTotal += aspect; }
       }
 
       topRow.appendChild(topFrag);
@@ -331,14 +214,12 @@
 
     function getScrollableElement() {
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
-      return isMobile
-        ? document.getElementById('imageContainer')
-        : document.querySelector('.scroller');
+      return isMobile ? document.getElementById('imageContainer') : document.querySelector('.scroller');
     }
 
     async function renderBasedOnViewport() {
-      const metadata = await loadMetadata();
-      const resolved = await resolveAll(metadata.length);
+      const metadata = await loadMetadata();               // captions now respect latest file
+      const resolved = await resolveAll(metadata.length);  // picks .jpg/.png reliably
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
       _lastIsMobile = isMobile;
@@ -356,7 +237,6 @@
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
     };
-
     document.getElementById('arrowRight').onclick = () => {
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: 500, behavior: 'smooth' });
