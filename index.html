@@ -17,27 +17,45 @@
     body { font-family: 'Ubuntu', sans-serif; background: #fff; height: 100vh; overflow: hidden; }
     .container { position: relative; height: 100vh; width: 100vw; }
     #imageContainer { height: 100%; width: 100%; box-sizing: border-box; }
-    .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: var(--row-gap); }
+
+    .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; }
     .scroller { display: flex; flex-direction: column; gap: var(--row-gap); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; height: 100%; flex: 1; }
-    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap); height: 50%; }
+    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap);
+      /* Prevent bottom-row clipping by subtracting the inter-row gap */
+      height: calc((100% - var(--row-gap)) / 2);
+    }
+
     .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; height: 100%; background: transparent; }
     .image-box.clickable { cursor: pointer; }
-    .image-box img { height: 100%; width: auto; object-fit: contain; opacity: 0.9; transition: opacity 0.3s ease; }
+
+    /* Ensure full containment in both axes, no cropping */
+    .image-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0.9;
+      transition: opacity 0.3s ease;
+    }
     .image-box.clickable:hover img { opacity: 0.75; }
+
     .image-title {
       position: absolute; bottom: 10px; left: 10px; z-index: 4; color: #000;
       font-size: clamp(0.66rem, 1.7vw, 1.33rem); font-weight: bold;
       text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
       pointer-events: none;
     }
+
     .arrow { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; z-index: 10; transition: transform 0.1s ease; user-select: none; -webkit-tap-highlight-color: transparent; }
     .arrow:active { transform: translateY(-50%) scale(0.9); }
     .arrow.left { left: 0.75rem; } .arrow.right { right: 0.75rem; }
     .arrow img { width: var(--arrow-size); height: auto; display: block; }
+
     @media (max-width: 763px) {
       #imageContainer { display: flex !important; flex-direction: row !important; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; height: 100vh; gap: var(--row-gap); align-items: center; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
-      .image-box { height: 100vh; }
+      .image-box { height: 100vh; width: auto; }
       .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
+      /* Keep mobile images fully contained too */
+      .image-box img { width: auto; height: 100%; object-fit: contain; }
     }
   </style>
 </head>
@@ -53,7 +71,7 @@
   </div>
 
   <script>
-    const VERSION = 'v2025-09-09-2';
+    const VERSION = 'v2025-09-09-3';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
@@ -71,12 +89,27 @@
     async function loadMetadata() {
       if (_metadataCache) return _metadataCache;
       const res = await fetch(asset('metadata.txt'), { cache: 'no-store' });
-      const text = await res.text();
-      _metadataCache = text.trim().split('\n').filter(Boolean).map(line => {
-        const parts = line.split('|~|');
-        if (parts.length === 1) return { title: (parts[0] || '').trim(), link: '' };
-        return { title: (parts[0] || '').trim(), link: (parts[1] || '').trim() };
-      });
+      const raw = await res.text();
+
+      _metadataCache = raw
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0) // keep any non-empty line, even if caption is empty
+        .map(line => {
+          // Support special token |*| anywhere in the line to mean "hide caption"
+          const hideToken = line.includes('|*|');
+          const cleaned = line.replace('|*|', '');
+
+          const parts = cleaned.split('|~|');
+          const titleRaw = (parts[0] ?? '').trim();
+          const link = (parts[1] ?? '').trim();
+
+          const hideCaption = hideToken || titleRaw === '*';
+          const title = hideCaption ? '' : titleRaw;
+
+          return { title, link, hideCaption };
+        });
+
       return _metadataCache;
     }
 
@@ -112,24 +145,30 @@
       location.href = link;
     }
 
-    function createImageBox(index, title, link, src, opts = {}) {
+    function createImageBox(index, title, link, src, opts = {}, hideCaption = false) {
       const box = document.createElement('div');
       box.className = 'image-box';
       if (link && link.trim()) {
         box.classList.add('clickable');
         box.addEventListener('click', () => safeNavigate(link), { passive: true });
       }
+
       const img = document.createElement('img');
       img.src = src;
       img.alt = title || '';
       img.loading = 'lazy';
       img.decoding = 'async';
       if (opts.fetchPriority) img.fetchPriority = opts.fetchPriority;
-      const caption = document.createElement('div');
-      caption.className = 'image-title';
-      caption.textContent = title || '';
+
       box.appendChild(img);
-      box.appendChild(caption);
+
+      if (!hideCaption && (title && title.length)) {
+        const caption = document.createElement('div');
+        caption.className = 'image-title';
+        caption.textContent = title;
+        box.appendChild(caption);
+      }
+
       return box;
     }
 
@@ -139,9 +178,9 @@
       container.style.display = 'flex';
       const frag = document.createDocumentFragment();
       for (let i = 0; i < metadata.length; i++) {
-        const { title, link } = metadata[i];
+        const { title, link, hideCaption } = metadata[i];
         const r = resolved[i];
-        const box = createImageBox(i + 1, title, link, r.src, { fetchPriority: i < 2 ? 'high' : 'auto' });
+        const box = createImageBox(i + 1, title, link, r.src, { fetchPriority: i < 2 ? 'high' : 'auto' }, hideCaption);
         if (r.width && r.height) box.style.aspectRatio = `${r.width} / ${r.height}`;
         frag.appendChild(box);
       }
@@ -151,31 +190,40 @@
     async function renderDesktop(metadata, resolved) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
+
       const wrapper = document.createElement('div');
       wrapper.className = 'desktop-wrapper';
+
       const scroller = document.createElement('div');
       scroller.className = 'scroller';
+
       const topRow = document.createElement('div');
       topRow.className = 'image-row';
+
       const bottomRow = document.createElement('div');
       bottomRow.className = 'image-row';
+
       scroller.appendChild(topRow);
       scroller.appendChild(bottomRow);
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
+
       let topTotal = 0, bottomTotal = 0;
       const topFrag = document.createDocumentFragment();
       const bottomFrag = document.createDocumentFragment();
+
       for (let i = 0; i < metadata.length; i++) {
-        const { title, link } = metadata[i];
+        const { title, link, hideCaption } = metadata[i];
         const r = resolved[i];
         const aspect = r.width && r.height ? r.width / r.height : 1.5;
-        const box = createImageBox(i + 1, title, link, r.src);
+        const box = createImageBox(i + 1, title, link, r.src, {}, hideCaption);
         if (topTotal <= bottomTotal) { topFrag.appendChild(box); topTotal += aspect; }
         else { bottomFrag.appendChild(box); bottomTotal += aspect; }
       }
+
       topRow.appendChild(topFrag);
       bottomRow.appendChild(bottomFrag);
+
       setupArrowVisibility(scroller);
       scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
@@ -186,7 +234,7 @@
       if (!scroller) { left.style.display = 'none'; right.style.display = 'none'; return; }
       const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
       left.style.display = scroller.scrollLeft > 10 ? 'block' : 'none';
-      right.style.display = scroller.scrollLeft < maxScrollLeft - 10 ? 'block' : 'none';
+      right.style.display = scroller.scrollLeft < Math.max(0, maxScrollLeft - 10) ? 'block' : 'none';
     }
 
     function getScrollableElement() {
@@ -208,6 +256,7 @@
       clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(renderBasedOnViewport, 200);
     }, { passive: true });
+
     document.getElementById('arrowLeft').onclick = () => {
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
