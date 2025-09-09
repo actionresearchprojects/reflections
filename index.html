@@ -19,7 +19,6 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body { height: 100%; }
 
     body {
@@ -178,13 +177,11 @@
   </div>
 
   <script>
-    // Caches to avoid repeated work across resizes
     let _metadataCache = null;
     let _lastIsMobile = null;
     let _resizeTimer = null;
-    let _resolvedSrcs = null;
+    let _resolved = null;
 
-    // Load and parse metadata; tolerate lines without |~|
     async function loadMetadata() {
       if (_metadataCache) return _metadataCache;
       const res = await fetch('metadata.txt', { cache: 'force-cache' });
@@ -195,56 +192,50 @@
         .filter(Boolean)
         .map(line => {
           const parts = line.split('|~|');
-          if (parts.length === 1) {
-            return { title: (parts[0] || '').trim(), link: '' };
-          }
+          if (parts.length === 1) return { title: (parts[0] || '').trim(), link: '' };
           return { title: (parts[0] || '').trim(), link: (parts[1] || '').trim() };
         });
       return _metadataCache;
     }
 
-    // Prefer .jpg, fall back to .png
-    async function pickImage(index) {
-      const base = `images/${index}`;
-      try {
-        const jpg = await fetch(`${base}.jpg`, { method: 'HEAD', cache: 'force-cache' });
-        if (jpg.ok) return `${base}.jpg`;
-      } catch {}
-      try {
-        const png = await fetch(`${base}.png`, { method: 'HEAD', cache: 'force-cache' });
-        if (png.ok) return `${base}.png`;
-      } catch {}
-      // Last resort: assume jpg
-      return `${base}.jpg`;
-    }
-
-    async function resolveAllSrcs(count) {
-      if (_resolvedSrcs && _resolvedSrcs.length === count) return _resolvedSrcs;
-      _resolvedSrcs = await Promise.all(
-        Array.from({ length: count }, (_, i) => pickImage(i + 1))
-      );
-      return _resolvedSrcs;
-    }
-
-    // Probe intrinsic size for aspect-ratio
-    function loadImage(src) {
+    function probeImage(src) {
       return new Promise(resolve => {
         const img = new Image();
         img.decoding = 'async';
         img.onload = () => resolve({
+          ok: true,
+          src,
           width: img.naturalWidth || img.width || 0,
           height: img.naturalHeight || img.height || 0
         });
-        img.onerror = () => resolve({ width: 0, height: 0 });
+        img.onerror = () => resolve({ ok: false, src, width: 0, height: 0 });
         img.src = src;
       });
+    }
+
+    async function resolveSrcForIndex(index) {
+      const base = `images/${index}`;
+      const tryJpg = await probeImage(`${base}.jpg`);
+      if (tryJpg.ok) return tryJpg;
+      const tryPng = await probeImage(`${base}.png`);
+      if (tryPng.ok) return tryPng;
+      return { ok: false, src: `${base}.jpg`, width: 0, height: 0 };
+    }
+
+    async function resolveAll(count) {
+      if (_resolved && _resolved.length === count) return _resolved;
+      _resolved = await Promise.all(
+        Array.from({ length: count }, (_, i) => resolveSrcForIndex(i + 1))
+      );
+      return _resolved;
     }
 
     function createImageBox(index, title, link, src, opts = {}) {
       const box = document.createElement('div');
       box.className = 'image-box';
+      const hasLink = Boolean(link && link.trim());
 
-      if (link) {
+      if (hasLink) {
         box.classList.add('clickable');
         box.addEventListener('click', () => {
           try { window.top.location.href = link; } catch { window.location.href = link; }
@@ -267,25 +258,23 @@
       return box;
     }
 
-    async function renderMobile(metadata, srcs) {
+    async function renderMobile(metadata, resolved) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
       container.style.display = 'flex';
 
-      const dims = await Promise.all(srcs.map(src => loadImage(src)));
-
       const frag = document.createDocumentFragment();
       for (let i = 0; i < metadata.length; i++) {
         const { title, link } = metadata[i];
-        const box = createImageBox(i + 1, title, link, srcs[i], { fetchPriority: i < 2 ? 'high' : 'auto' });
-        const w = dims[i].width, h = dims[i].height;
-        if (w && h) box.style.aspectRatio = `${w} / ${h}`;
+        const r = resolved[i];
+        const box = createImageBox(i + 1, title, link, r.src, { fetchPriority: i < 2 ? 'high' : 'auto' });
+        if (r.width && r.height) box.style.aspectRatio = `${r.width} / ${r.height}`;
         frag.appendChild(box);
       }
       container.appendChild(frag);
     }
 
-    async function renderDesktop(metadata, srcs) {
+    async function renderDesktop(metadata, resolved) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
 
@@ -306,30 +295,21 @@
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
-      const imageMeta = await Promise.all(
-        metadata.map((item, i) =>
-          loadImage(srcs[i]).then(dim => ({
-            idx: i,
-            title: item.title,
-            link: item.link,
-            src: srcs[i],
-            aspect: dim.width && dim.height ? dim.width / dim.height : 1.5
-          }))
-        )
-      );
-
       let topTotal = 0, bottomTotal = 0;
       const topFrag = document.createDocumentFragment();
       const bottomFrag = document.createDocumentFragment();
 
-      for (const data of imageMeta) {
-        const box = createImageBox(data.idx + 1, data.title, data.link, data.src);
+      for (let i = 0; i < metadata.length; i++) {
+        const { title, link } = metadata[i];
+        const r = resolved[i];
+        const aspect = r.width && r.height ? r.width / r.height : 1.5;
+        const box = createImageBox(i + 1, title, link, r.src);
         if (topTotal <= bottomTotal) {
           topFrag.appendChild(box);
-          topTotal += data.aspect;
+          topTotal += aspect;
         } else {
           bottomFrag.appendChild(box);
-          bottomTotal += data.aspect;
+          bottomTotal += aspect;
         }
       }
 
@@ -358,23 +338,20 @@
 
     async function renderBasedOnViewport() {
       const metadata = await loadMetadata();
-      const srcs = await resolveAllSrcs(metadata.length);
+      const resolved = await resolveAll(metadata.length);
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
       _lastIsMobile = isMobile;
-      await (isMobile ? renderMobile : renderDesktop)(metadata, srcs);
+      await (isMobile ? renderMobile : renderDesktop)(metadata, resolved);
     }
 
-    // Initial render
     window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
 
-    // Debounced resize: only re-render when actually crossing the breakpoint
     window.addEventListener('resize', () => {
       clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(renderBasedOnViewport, 200);
     }, { passive: true });
 
-    // Arrow controls
     document.getElementById('arrowLeft').onclick = () => {
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
