@@ -20,7 +20,7 @@
     .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: var(--row-gap); }
     .scroller { display: flex; flex-direction: column; gap: var(--row-gap); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; height: 100%; flex: 1; }
     .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap); height: 50%; }
-    .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: #ddd; height: 100%; }
+    .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; height: 100%; background: transparent; }
     .image-box.clickable { cursor: pointer; }
     .image-box img { height: 100%; width: auto; object-fit: contain; opacity: 0.9; transition: opacity 0.3s ease; }
     .image-box.clickable:hover img { opacity: 0.75; }
@@ -53,18 +53,13 @@
   </div>
 
   <script>
-    // Bump this when you change captions/images to defeat CDN/browser caches.
-    const VERSION = 'v2025-09-09-1';
-
-    // Build asset URLs that always resolve correctly when embedded.
+    const VERSION = 'v2025-09-09-2';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
       url.searchParams.set('v', VERSION);
       return url.href;
     }
-
-    // Set arrow icon src with cache-busting too.
     document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
     document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
 
@@ -77,15 +72,11 @@
       if (_metadataCache) return _metadataCache;
       const res = await fetch(asset('metadata.txt'), { cache: 'no-store' });
       const text = await res.text();
-      _metadataCache = text
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map(line => {
-          const parts = line.split('|~|');
-          if (parts.length === 1) return { title: (parts[0] || '').trim(), link: '' };
-          return { title: (parts[0] || '').trim(), link: (parts[1] || '').trim() };
-        });
+      _metadataCache = text.trim().split('\n').filter(Boolean).map(line => {
+        const parts = line.split('|~|');
+        if (parts.length === 1) return { title: (parts[0] || '').trim(), link: '' };
+        return { title: (parts[0] || '').trim(), link: (parts[1] || '').trim() };
+      });
       return _metadataCache;
     }
 
@@ -116,7 +107,6 @@
 
     function safeNavigate(link) {
       if (!link) return;
-      // Safer in embeds: try _top, fall back to new tab, finally same frame.
       try { window.open(link, '_top'); return; } catch {}
       try { window.open(link, '_blank', 'noopener'); return; } catch {}
       location.href = link;
@@ -125,23 +115,19 @@
     function createImageBox(index, title, link, src, opts = {}) {
       const box = document.createElement('div');
       box.className = 'image-box';
-      const hasLink = Boolean(link && link.trim());
-      if (hasLink) {
+      if (link && link.trim()) {
         box.classList.add('clickable');
         box.addEventListener('click', () => safeNavigate(link), { passive: true });
       }
-
       const img = document.createElement('img');
       img.src = src;
       img.alt = title || '';
       img.loading = 'lazy';
       img.decoding = 'async';
       if (opts.fetchPriority) img.fetchPriority = opts.fetchPriority;
-
       const caption = document.createElement('div');
       caption.className = 'image-title';
       caption.textContent = title || '';
-
       box.appendChild(img);
       box.appendChild(caption);
       return box;
@@ -165,28 +151,21 @@
     async function renderDesktop(metadata, resolved) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
-
       const wrapper = document.createElement('div');
       wrapper.className = 'desktop-wrapper';
-
       const scroller = document.createElement('div');
       scroller.className = 'scroller';
-
       const topRow = document.createElement('div');
       topRow.className = 'image-row';
-
       const bottomRow = document.createElement('div');
       bottomRow.className = 'image-row';
-
       scroller.appendChild(topRow);
       scroller.appendChild(bottomRow);
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
-
       let topTotal = 0, bottomTotal = 0;
       const topFrag = document.createDocumentFragment();
       const bottomFrag = document.createDocumentFragment();
-
       for (let i = 0; i < metadata.length; i++) {
         const { title, link } = metadata[i];
         const r = resolved[i];
@@ -195,10 +174,8 @@
         if (topTotal <= bottomTotal) { topFrag.appendChild(box); topTotal += aspect; }
         else { bottomFrag.appendChild(box); bottomTotal += aspect; }
       }
-
       topRow.appendChild(topFrag);
       bottomRow.appendChild(bottomFrag);
-
       setupArrowVisibility(scroller);
       scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
@@ -218,8 +195,8 @@
     }
 
     async function renderBasedOnViewport() {
-      const metadata = await loadMetadata();               // captions now respect latest file
-      const resolved = await resolveAll(metadata.length);  // picks .jpg/.png reliably
+      const metadata = await loadMetadata();
+      const resolved = await resolveAll(metadata.length);
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
       _lastIsMobile = isMobile;
@@ -227,12 +204,10 @@
     }
 
     window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
-
     window.addEventListener('resize', () => {
       clearTimeout(_resizeTimer);
       _resizeTimer = setTimeout(renderBasedOnViewport, 200);
     }, { passive: true });
-
     document.getElementById('arrowLeft').onclick = () => {
       const scroller = getScrollableElement();
       if (scroller) scroller.scrollBy({ left: -500, behavior: 'smooth' });
