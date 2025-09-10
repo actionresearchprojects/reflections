@@ -10,6 +10,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
 
+  <!-- Preload first few likely-hero images and arrows -->
+  <link rel="preload" as="image" href="images/1.jpg">
+  <link rel="preload" as="image" href="images/2.jpg">
+  <link rel="preload" as="image" href="images/3.jpg">
+  <link rel="preload" as="image" href="images/4.jpg">
+  <link rel="preload" as="image" href="arrows/backward-arrow.png">
+  <link rel="preload" as="image" href="arrows/forward-arrow.png">
+
   <style>
     :root { --row-gap: clamp(4px, 0.75vw, 12px); --arrow-size: clamp(3rem, 8vw, 5rem); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,22 +28,19 @@
 
     .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; }
     .scroller { display: flex; flex-direction: column; gap: var(--row-gap); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; height: 100%; flex: 1; }
-    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap);
-      /* Prevent bottom-row clipping by subtracting the inter-row gap */
-      height: calc((100% - var(--row-gap)) / 2);
-    }
+    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap); height: calc((100% - var(--row-gap)) / 2); }
 
     .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; height: 100%; background: transparent; }
     .image-box.clickable { cursor: pointer; }
 
-    /* Ensure full containment in both axes, no cropping */
     .image-box img {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      opacity: 0.9;
-      transition: opacity 0.3s ease;
+      opacity: 0;                          /* fade in when loaded */
+      transition: opacity 200ms ease;
     }
+    .image-box.loaded img { opacity: 0.9; }
     .image-box.clickable:hover img { opacity: 0.75; }
 
     .image-title {
@@ -44,6 +49,15 @@
       text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
       pointer-events: none;
     }
+
+    /* Lightweight skeleton so there’s no “blank” feel */
+    .skeleton { background: #f3f3f3; position: relative; }
+    .skeleton::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent);
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
     .arrow { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; z-index: 10; transition: transform 0.1s ease; user-select: none; -webkit-tap-highlight-color: transparent; }
     .arrow:active { transform: translateY(-50%) scale(0.9); }
@@ -54,7 +68,6 @@
       #imageContainer { display: flex !important; flex-direction: row !important; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; height: 100vh; gap: var(--row-gap); align-items: center; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
       .image-box { height: 100vh; width: auto; }
       .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
-      /* Keep mobile images fully contained too */
       .image-box img { width: auto; height: 100%; object-fit: contain; }
     }
   </style>
@@ -71,72 +84,57 @@
   </div>
 
   <script>
-    const VERSION = 'v2025-09-09-3';
+    const VERSION = 'v2025-09-10-1';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
-      url.searchParams.set('v', VERSION);
+      url.searchParams.set('v', VERSION);   // cache-bust on deploy, otherwise allow caching
       return url.href;
     }
+
+    // Arrow assets
     document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
     document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
 
-    let _metadataCache = null;
     let _lastIsMobile = null;
     let _resizeTimer = null;
-    let _resolved = null;
 
-    async function loadMetadata() {
-      if (_metadataCache) return _metadataCache;
-      const res = await fetch(asset('metadata.txt'), { cache: 'no-store' });
-      const raw = await res.text();
+    // Lazy loader with fallback from .jpg to .png only when needed
+    function attachLazy(imgEl, index, priority=false) {
+      const primary = asset(`images/${index}.jpg`);
+      const fallback = asset(`images/${index}.png`);
 
-      _metadataCache = raw
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l.length > 0) // keep any non-empty line, even if caption is empty
-        .map(line => {
-          // Support special token |*| anywhere in the line to mean "hide caption"
-          const hideToken = line.includes('|*|');
-          const cleaned = line.replace('|*|', '');
+      const loadSrc = (src) => {
+        imgEl.src = src;
+        if (priority) imgEl.fetchPriority = 'high';
+      };
 
-          const parts = cleaned.split('|~|');
-          const titleRaw = (parts[0] ?? '').trim();
-          const link = (parts[1] ?? '').trim();
+      let triedPng = false;
+      imgEl.addEventListener('error', () => {
+        if (!triedPng) { triedPng = true; loadSrc(fallback); }
+      }, { once: true });
 
-          const hideCaption = hideToken || titleRaw === '*';
-          const title = hideCaption ? '' : titleRaw;
+      imgEl.addEventListener('load', () => {
+        imgEl.closest('.image-box')?.classList.add('loaded');
+      }, { once: true });
 
-          return { title, link, hideCaption };
-        });
-
-      return _metadataCache;
+      // Defer assignment until intersecting
+      imgEl.dataset.primary = primary;
+      imgEl.dataset.fallback = fallback;
     }
 
-    function probeImage(src) {
-      return new Promise(resolve => {
-        const img = new Image();
-        img.decoding = 'async';
-        img.onload = () => resolve({ ok: true, src, width: img.naturalWidth || img.width || 0, height: img.naturalHeight || img.height || 0 });
-        img.onerror = () => resolve({ ok: false, src, width: 0, height: 0 });
-        img.src = src;
-      });
-    }
-
-    async function resolveSrcForIndex(index) {
-      const base = `images/${index}`;
-      const jpg = await probeImage(asset(`${base}.jpg`));
-      if (jpg.ok) return jpg;
-      const png = await probeImage(asset(`${base}.png`));
-      if (png.ok) return png;
-      return { ok: false, src: asset(`${base}.jpg`), width: 0, height: 0 };
-    }
-
-    async function resolveAll(count) {
-      if (_resolved && _resolved.length === count) return _resolved;
-      _resolved = await Promise.all(Array.from({ length: count }, (_, i) => resolveSrcForIndex(i + 1)));
-      return _resolved;
-    }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          const img = e.target;
+          if (!img.src) {
+            // use primary; fallback handled in onerror
+            img.src = img.dataset.primary;
+          }
+          io.unobserve(img);
+        }
+      }
+    }, { root: null, rootMargin: '800px 100px', threshold: 0.01 });
 
     function safeNavigate(link) {
       if (!link) return;
@@ -145,20 +143,25 @@
       location.href = link;
     }
 
-    function createImageBox(index, title, link, src, opts = {}, hideCaption = false) {
+    function createImageBox(index, title, link, hideCaption, priority=false) {
       const box = document.createElement('div');
-      box.className = 'image-box';
+      box.className = 'image-box skeleton';
       if (link && link.trim()) {
         box.classList.add('clickable');
         box.addEventListener('click', () => safeNavigate(link), { passive: true });
       }
 
       const img = document.createElement('img');
-      img.src = src;
       img.alt = title || '';
       img.loading = 'lazy';
       img.decoding = 'async';
-      if (opts.fetchPriority) img.fetchPriority = opts.fetchPriority;
+
+      attachLazy(img, index, priority);
+      io.observe(img);
+
+      img.addEventListener('load', () => {
+        box.classList.remove('skeleton');
+      }, { once: true });
 
       box.appendChild(img);
 
@@ -168,26 +171,60 @@
         caption.textContent = title;
         box.appendChild(caption);
       }
-
       return box;
     }
 
-    async function renderMobile(metadata, resolved) {
+    function setupArrowVisibility(scroller) {
+      const left = document.getElementById('arrowLeft');
+      const right = document.getElementById('arrowRight');
+      if (!scroller) { left.style.display = 'none'; right.style.display = 'none'; return; }
+      const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
+      left.style.display = scroller.scrollLeft > 10 ? 'block' : 'none';
+      right.style.display = scroller.scrollLeft < Math.max(0, maxScrollLeft - 10) ? 'block' : 'none';
+    }
+
+    function getScrollableElement() {
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
+      return isMobile ? document.getElementById('imageContainer') : document.querySelector('.scroller');
+    }
+
+    async function loadMetadata() {
+      // Allow caching; VERSION param handles busting
+      const res = await fetch(asset('metadata.txt'));
+      const raw = await res.text();
+
+      // Stream-like parse: yield lines as we go
+      return raw
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .map(line => {
+          const hideToken = line.includes('|*|');
+          const cleaned = line.replace('|*|', '');
+          const parts = cleaned.split('|~|');
+          const titleRaw = (parts[0] ?? '').trim();
+          const link = (parts[1] ?? '').trim();
+          const hideCaption = hideToken || titleRaw === '*';
+          const title = hideCaption ? '' : titleRaw;
+          return { title, link, hideCaption };
+        });
+    }
+
+    async function renderMobile(items) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
       container.style.display = 'flex';
       const frag = document.createDocumentFragment();
-      for (let i = 0; i < metadata.length; i++) {
-        const { title, link, hideCaption } = metadata[i];
-        const r = resolved[i];
-        const box = createImageBox(i + 1, title, link, r.src, { fetchPriority: i < 2 ? 'high' : 'auto' }, hideCaption);
-        if (r.width && r.height) box.style.aspectRatio = `${r.width} / ${r.height}`;
+
+      for (let i = 0; i < items.length; i++) {
+        const { title, link, hideCaption } = items[i];
+        const box = createImageBox(i + 1, title, link, hideCaption, i < 2);
         frag.appendChild(box);
       }
       container.appendChild(frag);
     }
 
-    async function renderDesktop(metadata, resolved) {
+    async function renderDesktop(items) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
 
@@ -208,53 +245,32 @@
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
+      // simple balanced distribution without measuring remote images first
       let topTotal = 0, bottomTotal = 0;
-      const topFrag = document.createDocumentFragment();
-      const bottomFrag = document.createDocumentFragment();
-
-      for (let i = 0; i < metadata.length; i++) {
-        const { title, link, hideCaption } = metadata[i];
-        const r = resolved[i];
-        const aspect = r.width && r.height ? r.width / r.height : 1.5;
-        const box = createImageBox(i + 1, title, link, r.src, {}, hideCaption);
-        if (topTotal <= bottomTotal) { topFrag.appendChild(box); topTotal += aspect; }
-        else { bottomFrag.appendChild(box); bottomTotal += aspect; }
+      for (let i = 0; i < items.length; i++) {
+        const { title, link, hideCaption } = items[i];
+        const box = createImageBox(i + 1, title, link, hideCaption, i < 4);
+        if (topTotal <= bottomTotal) { topRow.appendChild(box); topTotal += 1.5; }
+        else { bottomRow.appendChild(box); bottomTotal += 1.5; }
       }
-
-      topRow.appendChild(topFrag);
-      bottomRow.appendChild(bottomFrag);
 
       setupArrowVisibility(scroller);
       scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
 
-    function setupArrowVisibility(scroller) {
-      const left = document.getElementById('arrowLeft');
-      const right = document.getElementById('arrowRight');
-      if (!scroller) { left.style.display = 'none'; right.style.display = 'none'; return; }
-      const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
-      left.style.display = scroller.scrollLeft > 10 ? 'block' : 'none';
-      right.style.display = scroller.scrollLeft < Math.max(0, maxScrollLeft - 10) ? 'block' : 'none';
-    }
-
-    function getScrollableElement() {
-      const isMobile = window.matchMedia('(max-width: 763px)').matches;
-      return isMobile ? document.getElementById('imageContainer') : document.querySelector('.scroller');
-    }
-
     async function renderBasedOnViewport() {
-      const metadata = await loadMetadata();
-      const resolved = await resolveAll(metadata.length);
+      if (!window.__items) window.__items = await loadMetadata();  // only fetch once
+
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
       _lastIsMobile = isMobile;
-      await (isMobile ? renderMobile : renderDesktop)(metadata, resolved);
+      await (isMobile ? renderMobile : renderDesktop)(window.__items);
     }
 
     window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
     window.addEventListener('resize', () => {
       clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(renderBasedOnViewport, 200);
+      _resizeTimer = setTimeout(renderBasedOnViewport, 150);
     }, { passive: true });
 
     document.getElementById('arrowLeft').onclick = () => {
