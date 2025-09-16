@@ -5,53 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Responsive Image Carousel</title>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
 
-  <!-- Preload first few likely-hero images and arrows -->
+  <!-- Preload a few likely heroes and arrows -->
   <link rel="preload" as="image" href="images/1.jpg">
   <link rel="preload" as="image" href="images/2.jpg">
   <link rel="preload" as="image" href="images/3.jpg">
-  <link rel="preload" as="image" href="images/4.jpg">
   <link rel="preload" as="image" href="arrows/backward-arrow.png">
   <link rel="preload" as="image" href="arrows/forward-arrow.png">
 
   <style>
     :root { --row-gap: clamp(4px, 0.75vw, 12px); --arrow-size: clamp(3rem, 8vw, 5rem); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
+
+    html, body { height: 100%; min-width: 0; min-height: 0; }
     body { font-family: 'Ubuntu', sans-serif; background: #fff; height: 100vh; overflow: hidden; }
-    .container { position: relative; height: 100vh; width: 100vw; }
-    #imageContainer { height: 100%; width: 100%; box-sizing: border-box; }
 
-    .desktop-wrapper { height: 100%; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; }
-    .scroller { display: flex; flex-direction: column; gap: var(--row-gap); overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; height: 100%; flex: 1; }
-    .image-row { display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap); height: calc((100% - var(--row-gap)) / 2); }
+    .container { position: relative; height: 100vh; width: 100vw; min-width: 0; min-height: 0; }
+    #imageContainer { height: 100%; width: 100%; min-width: 0; min-height: 0; }
 
-    .image-box { position: relative; overflow: hidden; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; height: 100%; background: transparent; }
+    .desktop-wrapper { height: 100%; flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
+
+    .scroller {
+      display: flex; flex-direction: column; gap: var(--row-gap);
+      overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth;
+      height: 100%; flex: 1; min-width: 0; min-height: 0;
+    }
+
+    .image-row {
+      display: flex; flex-direction: row; flex: 0 0 auto; gap: var(--row-gap);
+      height: calc((100% - var(--row-gap)) / 2);
+      overflow: hidden; min-width: 0; min-height: 0;
+    }
+
+    .image-box {
+      position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+      flex: 0 0 auto; height: 100%; background: #fff;   /* white so PNG alpha doesn’t look like gutters */
+      min-width: 0; min-height: 0;
+    }
     .image-box.clickable { cursor: pointer; }
 
     .image-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      opacity: 0;
-      transition: opacity 200ms ease;
-      max-width: 100%;
-      max-height: 100%;
-      display: block;
+      display: block; max-width: 100%; max-height: 100%;
+      width: 100%; height: 100%; object-fit: contain;
+      opacity: 0; transition: opacity 200ms ease;
     }
     .image-box.loaded img { opacity: 0.9; }
     .image-box.clickable:hover img { opacity: 0.75; }
-
-    /* Allow flex children to shrink in Safari */
-    .container,
-    .desktop-wrapper,
-    .scroller,
-    .image-row,
-    .image-box { min-width: 0; }
 
     .image-title {
       position: absolute; bottom: 10px; left: 10px; z-index: 4; color: #000;
@@ -60,7 +62,7 @@
       pointer-events: none;
     }
 
-    /* Lightweight skeleton so there’s no “blank” feel */
+    /* Skeleton */
     .skeleton { background: #f3f3f3; position: relative; }
     .skeleton::after {
       content: ""; position: absolute; inset: 0;
@@ -74,38 +76,34 @@
     .arrow.left { left: 0.75rem; } .arrow.right { right: 0.75rem; }
     .arrow img { width: var(--arrow-size); height: auto; display: block; }
 
-    /* Desktop row safety (Safari) */
-    .scroller { overflow-x: auto; overflow-y: hidden; }
-    .image-row { min-height: 0; }
+    /* Desktop: give each tile a finite width derived from viewport height.
+       This prevents Safari from using giant intrinsic widths. */
+    @media (min-width: 764px) {
+      .image-box { width: min(66vh, 60vw); } /* wide but bounded; adjust to taste */
+      .image-row { align-items: stretch; }
+      .image-box img { width: 100%; height: 100%; object-fit: contain; }
+    }
 
-    /* Mobile layout */
+    /* Mobile: each slide is exactly one viewport wide */
     @media (max-width: 763px) {
       #imageContainer {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        height: 100vh;
-        gap: var(--row-gap);
-        align-items: center;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: auto; overflow-y: hidden;
+        height: 100vh; gap: var(--row-gap); align-items: center;
+        scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
+        min-width: 0; min-height: 0;
       }
       .image-box {
-        flex: 0 0 100vw;     /* firm slide width to prevent Safari ballooning */
+        flex: 0 0 100vw;
         width: 100vw;
         height: 100vh;
-        background: #fff;    /* ensures transparent PNGs don’t look like “borders” */
         scroll-snap-align: start;
       }
       .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
-      .image-box img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
+      .image-box img { width: 100%; height: 100%; object-fit: contain; }
     }
   </style>
 </head>
@@ -121,7 +119,7 @@
   </div>
 
   <script>
-    const VERSION = 'v2025-09-16-1';
+    const VERSION = 'v2025-09-16-2';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
@@ -129,33 +127,23 @@
       return url.href;
     }
 
-    // Arrow assets
+    // Arrows
     document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
     document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
 
     let _lastIsMobile = null;
     let _resizeTimer = null;
 
-    // Lazy loader with fallback from .jpg to .png only when needed
+    // Lazy loader with jpg→png fallback only on error
     function attachLazy(imgEl, index, priority=false) {
       const primary = asset(`images/${index}.jpg`);
       const fallback = asset(`images/${index}.png`);
-
-      const loadSrc = (src) => {
-        imgEl.src = src;
-        if (priority) imgEl.fetchPriority = 'high';
-      };
+      const loadSrc = (src) => { imgEl.src = src; if (priority) imgEl.fetchPriority = 'high'; };
 
       let triedPng = false;
-      imgEl.addEventListener('error', () => {
-        if (!triedPng) { triedPng = true; loadSrc(fallback); }
-      }, { once: true });
+      imgEl.addEventListener('error', () => { if (!triedPng) { triedPng = true; loadSrc(fallback); } }, { once: true });
+      imgEl.addEventListener('load', () => { imgEl.closest('.image-box')?.classList.add('loaded'); }, { once: true });
 
-      imgEl.addEventListener('load', () => {
-        imgEl.closest('.image-box')?.classList.add('loaded');
-      }, { once: true });
-
-      // Defer assignment until intersecting
       imgEl.dataset.primary = primary;
       imgEl.dataset.fallback = fallback;
     }
@@ -164,9 +152,7 @@
       for (const e of entries) {
         if (e.isIntersecting) {
           const img = e.target;
-          if (!img.src) {
-            img.src = img.dataset.primary;
-          }
+          if (!img.src) img.src = img.dataset.primary;
           io.unobserve(img);
         }
       }
@@ -195,9 +181,7 @@
       attachLazy(img, index, priority);
       io.observe(img);
 
-      img.addEventListener('load', () => {
-        box.classList.remove('skeleton');
-      }, { once: true });
+      img.addEventListener('load', () => { box.classList.remove('skeleton'); }, { once: true });
 
       box.appendChild(img);
 
@@ -227,7 +211,6 @@
     async function loadMetadata() {
       const res = await fetch(asset('metadata.txt'));
       const raw = await res.text();
-
       return raw
         .split('\n')
         .map(l => l.trim())
@@ -257,7 +240,6 @@
       }
       container.appendChild(frag);
 
-      // Show/hide arrows for mobile horizontal scroll too
       setupArrowVisibility(container);
       container.addEventListener('scroll', () => setupArrowVisibility(container), { passive: true });
     }
@@ -283,13 +265,13 @@
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
-      // simple balanced distribution
+      // Simple balanced distribution
       let topTotal = 0, bottomTotal = 0;
       for (let i = 0; i < items.length; i++) {
         const { title, link, hideCaption } = items[i];
         const box = createImageBox(i + 1, title, link, hideCaption, i < 4);
-        if (topTotal <= bottomTotal) { topRow.appendChild(box); topTotal += 1.5; }
-        else { bottomRow.appendChild(box); bottomTotal += 1.5; }
+        if (topTotal <= bottomTotal) { topRow.appendChild(box); topTotal += 1; }
+        else { bottomRow.appendChild(box); bottomTotal += 1; }
       }
 
       setupArrowVisibility(scroller);
@@ -297,7 +279,7 @@
     }
 
     async function renderBasedOnViewport() {
-      if (!window.__items) window.__items = await loadMetadata();  // only fetch once
+      if (!window.__items) window.__items = await loadMetadata();
 
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
@@ -306,10 +288,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
-    window.addEventListener('resize', () => {
-      clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(renderBasedOnViewport, 150);
-    }, { passive: true });
+    window.addEventListener('resize', () => { clearTimeout(_resizeTimer); _resizeTimer = setTimeout(renderBasedOnViewport, 150); }, { passive: true });
 
     document.getElementById('arrowLeft').onclick = () => {
       const scroller = getScrollableElement();
