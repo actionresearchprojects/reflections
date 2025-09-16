@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
 
-  <!-- Preload a few likely heroes and arrows -->
+  <!-- Preload -->
   <link rel="preload" as="image" href="images/1.jpg">
   <link rel="preload" as="image" href="images/2.jpg">
   <link rel="preload" as="image" href="images/3.jpg">
@@ -19,7 +19,6 @@
   <style>
     :root { --row-gap: clamp(4px, 0.75vw, 12px); --arrow-size: clamp(3rem, 8vw, 5rem); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body { height: 100%; min-width: 0; min-height: 0; }
     body { font-family: 'Ubuntu', sans-serif; background: #fff; height: 100vh; overflow: hidden; }
 
@@ -42,14 +41,16 @@
 
     .image-box {
       position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
-      flex: 0 0 auto; height: 100%; background: #fff;   /* white so PNG alpha doesn’t look like gutters */
+      flex: 0 0 auto; height: 100%; background: transparent;   /* no white bars */
       min-width: 0; min-height: 0;
     }
     .image-box.clickable { cursor: pointer; }
 
     .image-box img {
-      display: block; max-width: 100%; max-height: 100%;
-      width: 100%; height: 100%; object-fit: contain;
+      display: block;
+      width: 100%; height: 100%;
+      object-fit: cover;             /* fill container, crop if needed */
+      object-position: center center;
       opacity: 0; transition: opacity 200ms ease;
     }
     .image-box.loaded img { opacity: 0.9; }
@@ -62,7 +63,6 @@
       pointer-events: none;
     }
 
-    /* Skeleton */
     .skeleton { background: #f3f3f3; position: relative; }
     .skeleton::after {
       content: ""; position: absolute; inset: 0;
@@ -76,15 +76,11 @@
     .arrow.left { left: 0.75rem; } .arrow.right { right: 0.75rem; }
     .arrow img { width: var(--arrow-size); height: auto; display: block; }
 
-    /* Desktop: give each tile a finite width derived from viewport height.
-       This prevents Safari from using giant intrinsic widths. */
     @media (min-width: 764px) {
-      .image-box { width: min(66vh, 60vw); } /* wide but bounded; adjust to taste */
+      .image-box { width: min(66vh, 60vw); }
       .image-row { align-items: stretch; }
-      .image-box img { width: 100%; height: 100%; object-fit: contain; }
     }
 
-    /* Mobile: each slide is exactly one viewport wide */
     @media (max-width: 763px) {
       #imageContainer {
         display: flex !important;
@@ -94,7 +90,6 @@
         height: 100vh; gap: var(--row-gap); align-items: center;
         scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
-        min-width: 0; min-height: 0;
       }
       .image-box {
         flex: 0 0 100vw;
@@ -103,7 +98,6 @@
         scroll-snap-align: start;
       }
       .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
-      .image-box img { width: 100%; height: 100%; object-fit: contain; }
     }
   </style>
 </head>
@@ -119,7 +113,7 @@
   </div>
 
   <script>
-    const VERSION = 'v2025-09-16-2';
+    const VERSION = 'v2025-09-16-3';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
@@ -127,25 +121,20 @@
       return url.href;
     }
 
-    // Arrows
     document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
     document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
 
     let _lastIsMobile = null;
     let _resizeTimer = null;
 
-    // Lazy loader with jpg→png fallback only on error
     function attachLazy(imgEl, index, priority=false) {
       const primary = asset(`images/${index}.jpg`);
       const fallback = asset(`images/${index}.png`);
       const loadSrc = (src) => { imgEl.src = src; if (priority) imgEl.fetchPriority = 'high'; };
-
       let triedPng = false;
       imgEl.addEventListener('error', () => { if (!triedPng) { triedPng = true; loadSrc(fallback); } }, { once: true });
       imgEl.addEventListener('load', () => { imgEl.closest('.image-box')?.classList.add('loaded'); }, { once: true });
-
-      imgEl.dataset.primary = primary;
-      imgEl.dataset.fallback = fallback;
+      imgEl.dataset.primary = primary; imgEl.dataset.fallback = fallback;
     }
 
     const io = new IntersectionObserver((entries) => {
@@ -172,23 +161,14 @@
         box.classList.add('clickable');
         box.addEventListener('click', () => safeNavigate(link), { passive: true });
       }
-
       const img = document.createElement('img');
-      img.alt = title || '';
-      img.loading = 'lazy';
-      img.decoding = 'async';
-
-      attachLazy(img, index, priority);
-      io.observe(img);
-
+      img.alt = title || ''; img.loading = 'lazy'; img.decoding = 'async';
+      attachLazy(img, index, priority); io.observe(img);
       img.addEventListener('load', () => { box.classList.remove('skeleton'); }, { once: true });
-
       box.appendChild(img);
-
       if (!hideCaption && (title && title.length)) {
         const caption = document.createElement('div');
-        caption.className = 'image-title';
-        caption.textContent = title;
+        caption.className = 'image-title'; caption.textContent = title;
         box.appendChild(caption);
       }
       return box;
@@ -211,35 +191,28 @@
     async function loadMetadata() {
       const res = await fetch(asset('metadata.txt'));
       const raw = await res.text();
-      return raw
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l.length > 0)
-        .map(line => {
-          const hideToken = line.includes('|*|');
-          const cleaned = line.replace('|*|', '');
-          const parts = cleaned.split('|~|');
-          const titleRaw = (parts[0] ?? '').trim();
-          const link = (parts[1] ?? '').trim();
-          const hideCaption = hideToken || titleRaw === '*';
-          const title = hideCaption ? '' : titleRaw;
-          return { title, link, hideCaption };
-        });
+      return raw.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(line => {
+        const hideToken = line.includes('|*|');
+        const cleaned = line.replace('|*|', '');
+        const parts = cleaned.split('|~|');
+        const titleRaw = (parts[0] ?? '').trim();
+        const link = (parts[1] ?? '').trim();
+        const hideCaption = hideToken || titleRaw === '*';
+        const title = hideCaption ? '' : titleRaw;
+        return { title, link, hideCaption };
+      });
     }
 
     async function renderMobile(items) {
       const container = document.getElementById('imageContainer');
-      container.innerHTML = '';
-      container.style.display = 'flex';
+      container.innerHTML = ''; container.style.display = 'flex';
       const frag = document.createDocumentFragment();
-
       for (let i = 0; i < items.length; i++) {
         const { title, link, hideCaption } = items[i];
         const box = createImageBox(i + 1, title, link, hideCaption, i < 2);
         frag.appendChild(box);
       }
       container.appendChild(frag);
-
       setupArrowVisibility(container);
       container.addEventListener('scroll', () => setupArrowVisibility(container), { passive: true });
     }
@@ -247,25 +220,11 @@
     async function renderDesktop(items) {
       const container = document.getElementById('imageContainer');
       container.innerHTML = '';
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'desktop-wrapper';
-
-      const scroller = document.createElement('div');
-      scroller.className = 'scroller';
-
-      const topRow = document.createElement('div');
-      topRow.className = 'image-row';
-
-      const bottomRow = document.createElement('div');
-      bottomRow.className = 'image-row';
-
-      scroller.appendChild(topRow);
-      scroller.appendChild(bottomRow);
-      wrapper.appendChild(scroller);
-      container.appendChild(wrapper);
-
-      // Simple balanced distribution
+      const wrapper = document.createElement('div'); wrapper.className = 'desktop-wrapper';
+      const scroller = document.createElement('div'); scroller.className = 'scroller';
+      const topRow = document.createElement('div'); topRow.className = 'image-row';
+      const bottomRow = document.createElement('div'); bottomRow.className = 'image-row';
+      scroller.appendChild(topRow); scroller.appendChild(bottomRow); wrapper.appendChild(scroller); container.appendChild(wrapper);
       let topTotal = 0, bottomTotal = 0;
       for (let i = 0; i < items.length; i++) {
         const { title, link, hideCaption } = items[i];
@@ -273,14 +232,12 @@
         if (topTotal <= bottomTotal) { topRow.appendChild(box); topTotal += 1; }
         else { bottomRow.appendChild(box); bottomTotal += 1; }
       }
-
       setupArrowVisibility(scroller);
       scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
 
     async function renderBasedOnViewport() {
       if (!window.__items) window.__items = await loadMetadata();
-
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
       if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
       _lastIsMobile = isMobile;
