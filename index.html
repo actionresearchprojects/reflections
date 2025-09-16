@@ -85,7 +85,7 @@
     .arrow img { width: var(--arrow-size); height: auto; display: block; }
 
     /* Mobile: single row, fixed height, variable widths.
-       Use dynamic viewport units to avoid URL-bar “vh” bugs on Chrome iOS/Android.
+       Use dynamic viewport units to avoid URL-bar "vh" bugs on Chrome iOS/Android.
        Also cap each slide to viewport width to prevent pre-load ballooning. */
     @media (max-width: 763px) {
       #imageContainer {
@@ -141,8 +141,64 @@
     document.getElementById('arrowLeftImg').src = asset('arrows/backward-arrow.png');
     document.getElementById('arrowRightImg').src = asset('arrows/forward-arrow.png');
 
-    let _lastIsMobile = null;
-    let _resizeTimer = null;
+    let _currentLayout = null;
+    let _resizeAnimationFrame = null;
+
+    // State preservation
+    function captureScrollState() {
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
+      const scroller = isMobile ? 
+        document.getElementById('imageContainer') : 
+        document.querySelector('.scroller');
+      
+      if (!scroller) return null;
+      
+      // Calculate which image is most visible
+      const boxes = scroller.querySelectorAll('.image-box');
+      let mostVisibleIndex = 0;
+      let maxVisibility = 0;
+      
+      for (let i = 0; i < boxes.length; i++) {
+        const box = boxes[i];
+        const rect = box.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        
+        const visibleWidth = Math.max(0, 
+          Math.min(rect.right, scrollerRect.right) - 
+          Math.max(rect.left, scrollerRect.left)
+        );
+        
+        if (visibleWidth > maxVisibility) {
+          maxVisibility = visibleWidth;
+          mostVisibleIndex = i;
+        }
+      }
+      
+      return { mostVisibleIndex };
+    }
+
+    function restoreScrollState(state) {
+      if (!state) return;
+      
+      const isMobile = window.matchMedia('(max-width: 763px)').matches;
+      const scroller = isMobile ? 
+        document.getElementById('imageContainer') : 
+        document.querySelector('.scroller');
+      
+      if (!scroller) return;
+      
+      const boxes = scroller.querySelectorAll('.image-box');
+      if (boxes[state.mostVisibleIndex]) {
+        // Use requestAnimationFrame to ensure layout is complete
+        requestAnimationFrame(() => {
+          boxes[state.mostVisibleIndex].scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+            inline: 'start'
+          });
+        });
+      }
+    }
 
     function attachLazy(imgEl, index, priority=false) {
       const primary = asset(`images/${index}.jpg`);
@@ -283,18 +339,42 @@
       scroller.addEventListener('scroll', () => setupArrowVisibility(scroller), { passive: true });
     }
 
-    async function renderBasedOnViewport() {
+    async function renderBasedOnViewport(preserveState = true) {
       if (!window.__items) window.__items = await loadMetadata();
+      
       const isMobile = window.matchMedia('(max-width: 763px)').matches;
-      if (isMobile === _lastIsMobile && document.querySelector('.image-box')) return;
-      _lastIsMobile = isMobile;
+      const layoutKey = isMobile ? 'mobile' : 'desktop';
+      
+      // Only rebuild if layout actually changed
+      if (layoutKey === _currentLayout && document.querySelector('.image-box')) {
+        return;
+      }
+      
+      // Capture state before rebuilding
+      const scrollState = preserveState ? captureScrollState() : null;
+      
+      _currentLayout = layoutKey;
       await (isMobile ? renderMobile : renderDesktop)(window.__items);
+      
+      // Restore state after rebuilding
+      if (scrollState) {
+        restoreScrollState(scrollState);
+      }
     }
 
-    window.addEventListener('DOMContentLoaded', renderBasedOnViewport, { passive: true });
+    window.addEventListener('DOMContentLoaded', () => renderBasedOnViewport(false), { passive: true });
+    
     window.addEventListener('resize', () => {
-      clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(renderBasedOnViewport, 150);
+      // Cancel any pending animation frame
+      if (_resizeAnimationFrame) {
+        cancelAnimationFrame(_resizeAnimationFrame);
+      }
+      
+      // Use requestAnimationFrame instead of setTimeout for smoother handling
+      _resizeAnimationFrame = requestAnimationFrame(() => {
+        renderBasedOnViewport(true);
+        _resizeAnimationFrame = null;
+      });
     }, { passive: true });
 
     document.getElementById('arrowLeft').onclick = () => {
