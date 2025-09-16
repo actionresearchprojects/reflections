@@ -37,11 +37,21 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      opacity: 0;                          /* fade in when loaded */
+      opacity: 0;
       transition: opacity 200ms ease;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
     }
     .image-box.loaded img { opacity: 0.9; }
     .image-box.clickable:hover img { opacity: 0.75; }
+
+    /* Allow flex children to shrink in Safari */
+    .container,
+    .desktop-wrapper,
+    .scroller,
+    .image-row,
+    .image-box { min-width: 0; }
 
     .image-title {
       position: absolute; bottom: 10px; left: 10px; z-index: 4; color: #000;
@@ -64,11 +74,38 @@
     .arrow.left { left: 0.75rem; } .arrow.right { right: 0.75rem; }
     .arrow img { width: var(--arrow-size); height: auto; display: block; }
 
+    /* Desktop row safety (Safari) */
+    .scroller { overflow-x: auto; overflow-y: hidden; }
+    .image-row { min-height: 0; }
+
+    /* Mobile layout */
     @media (max-width: 763px) {
-      #imageContainer { display: flex !important; flex-direction: row !important; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; height: 100vh; gap: var(--row-gap); align-items: center; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
-      .image-box { height: 100vh; width: auto; }
+      #imageContainer {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 100vh;
+        gap: var(--row-gap);
+        align-items: center;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+      }
+      .image-box {
+        flex: 0 0 100vw;     /* firm slide width to prevent Safari ballooning */
+        width: 100vw;
+        height: 100vh;
+        background: #fff;    /* ensures transparent PNGs don’t look like “borders” */
+        scroll-snap-align: start;
+      }
       .image-title { font-size: clamp(0.53rem, 2.6vw, 0.8rem); }
-      .image-box img { width: auto; height: 100%; object-fit: contain; }
+      .image-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
     }
   </style>
 </head>
@@ -84,11 +121,11 @@
   </div>
 
   <script>
-    const VERSION = 'v2025-09-10-1';
+    const VERSION = 'v2025-09-16-1';
     function asset(path) {
       const here = document.currentScript?.src ? new URL('.', document.currentScript.src) : new URL('.', location.href);
       const url = new URL(path, here);
-      url.searchParams.set('v', VERSION);   // cache-bust on deploy, otherwise allow caching
+      url.searchParams.set('v', VERSION);
       return url.href;
     }
 
@@ -128,7 +165,6 @@
         if (e.isIntersecting) {
           const img = e.target;
           if (!img.src) {
-            // use primary; fallback handled in onerror
             img.src = img.dataset.primary;
           }
           io.unobserve(img);
@@ -189,11 +225,9 @@
     }
 
     async function loadMetadata() {
-      // Allow caching; VERSION param handles busting
       const res = await fetch(asset('metadata.txt'));
       const raw = await res.text();
 
-      // Stream-like parse: yield lines as we go
       return raw
         .split('\n')
         .map(l => l.trim())
@@ -222,6 +256,10 @@
         frag.appendChild(box);
       }
       container.appendChild(frag);
+
+      // Show/hide arrows for mobile horizontal scroll too
+      setupArrowVisibility(container);
+      container.addEventListener('scroll', () => setupArrowVisibility(container), { passive: true });
     }
 
     async function renderDesktop(items) {
@@ -245,7 +283,7 @@
       wrapper.appendChild(scroller);
       container.appendChild(wrapper);
 
-      // simple balanced distribution without measuring remote images first
+      // simple balanced distribution
       let topTotal = 0, bottomTotal = 0;
       for (let i = 0; i < items.length; i++) {
         const { title, link, hideCaption } = items[i];
