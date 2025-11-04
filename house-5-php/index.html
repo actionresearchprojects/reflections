@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tanzanian Children’s Eco Village</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      box-sizing: border-box;
+      font-family: 'Ubuntu', sans-serif;
+      background: #fff;
+      color: #111;
+      max-width: 700px;
+      margin: auto;
+      line-height: 1.6;
+    }
+    *, *::before, *::after { box-sizing: inherit; }
+    h1 {
+      font-size: 1.8rem;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    img {
+      width: 100%;
+      height: auto;
+      margin: 10px 0;
+    }
+    #topBtn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 6px 10px;
+      font-size: 18px;
+      background: #000;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+      z-index: 10;
+    }
+    #topBtn.visible { opacity: 0.7; pointer-events: auto; }
+    #topBtn:hover { opacity: 1; }
+    #scrollPrompt {
+      position: fixed;
+      top: 14px;
+      right: 16px;
+      font-size: clamp(12px, 1.5vw, 16px);
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: bold;
+      color: #000;
+      user-select: none;
+      transition: opacity 0.6s ease;
+      z-index: 5;
+    }
+    #scrollPrompt.fade-out { opacity: 0; }
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      border: 1px solid black;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .spacer { height: 80px; }
+  </style>
+</head>
+<body>
+  <div id="scrollPrompt">↓ Scroll</div>
+  <h1>Tanzanian Children’s Eco Village Aims to Inspire Low Carbon Example</h1>
+
+  <img src="https://passivehouseplus.co.uk/media/k2/items/cache/66a54350e94d9d93612885188af705a6_L.jpg" alt="Eco Village Tanzania" />
+
+  <p>In 2016, three British sustainable building experts were asked to design a new school, housing, and other facilities for an eco village in Tanzania that caters to the country’s orphans. They aimed to take the principles of passive house design and apply them in a low-cost, low-tech manner to demonstrate that sustainable, comfortable, and affordable buildings could be accessible to the people of rural Tanzania. This is the story of the project so far.</p>
+
+  <p>Simmonds Mills Architects were approached by Kamran Fazil of iHelp, an international charity based in Birmingham, to support their initiative — the Children’s Eco Village in Tanzania. Established in 2012, it aims to give orphaned children a better future while promoting sustainable and environmentally conscious practices. The eco village, located in the Mkuranga district south of Dar es Salaam, seeks to demonstrate to local communities that comfortable low-carbon living is achievable.</p>
+
+  <img src="https://passivehouseplus.co.uk/media/k2/items/cache/66a54350e94d9d93612885188af705a6_M.jpg" alt="Eco village layout diagram" />
+
+  <p>The brief to Simmonds Mills included masterplanning, new accommodation, educational facilities, and housing for staff. They also had to rectify earlier building issues such as roof leaks, overheating, and fruit bat damage. The design challenge was to balance secure, private structures with natural cooling and shading, replicating the comfort of resting under trees — but without mosquitoes.</p>
+
+  <p>Inspired by West African architect Francis Kéré, the team combined low-energy design with local construction techniques. PHPP climate data for Dar es Salaam showed year-round warm conditions, meaning that draughts, not airtightness, were key. Buildings needed to be shaded and ventilated rather than sealed.</p>
+
+  <p>The architects studied regional vernacular architecture, particularly the shaded window and courtyard typologies of Zanzibar, built traditionally with coral stone and lime mortar. While coral use is now prohibited, the team adapted similar principles with modern, widely available materials like concrete blocks, timber, and metal roofing.</p>
+
+  <p>Rather than pursue full passive-house certification, the project adopted a “low-cost, low-tech tropical” interpretation of its principles: ultra-low energy, passive cooling through shading, comfort without condensation, and natural ventilation instead of mechanical systems. The result was a bioclimatic design with a double roof for shade and airflow, natural fibre elements, and careful orientation.</p>
+
+  <img src="https://passivehouseplus.co.uk/media/k2/items/cache/66a54350e94d9d93612885188af705a6_S.jpg" alt="Design principles for natural ventilation" />
+
+  <p>To test the approach, the team built a small prototype in 2018. Made of concrete block, timber, and galvanised metal, it included guest rooms, showers, and shaded roof ventilation. The test phase used TinyTag loggers to monitor temperature and humidity, revealing that shaded rooms stayed cooler than external temperatures and that darker paint caused measurable heat gain.</p>
+
+  <p>Findings informed design refinements: greater window openings for cross-ventilation, lighter finishes, less thermal mass, and provision for ceiling fans. The double-roof design proved successful in moderating daytime temperatures. Future houses and school buildings would use similar principles, with double eaves, adjustable louvres, and uninsulated masonry suited to the stable tropical conditions.</p>
+
+  <img src="https://passivehouseplus.co.uk/media/k2/items/cache/66a54350e94d9d93612885188af705a6_XL.jpg" alt="Monitoring setup at eco village" />
+
+  <p>The project underscores an important insight: passive-house principles can inspire adaptable, resource-efficient building design even where economic and climatic realities make conventional certification impractical. By prioritising comfort, shading, and natural airflow over technology and standardisation, the eco village points toward a practical model of sustainable rural housing for East Africa’s future.</p>
+
+  <div class="spacer"></div>
+  <button id="topBtn">▲</button>
+
+  <script>
+    const topBtn = document.getElementById('topBtn');
+    const scrollPrompt = document.getElementById('scrollPrompt');
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY > 100;
+      topBtn.classList.toggle('visible', scrolled);
+      scrollPrompt.classList.toggle('fade-out', scrolled);
+    });
+    topBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>
